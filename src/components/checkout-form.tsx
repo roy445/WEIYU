@@ -14,6 +14,16 @@ type Props = {
   acceptingOrders: boolean;
 };
 
+type AvailableCoupon = {
+  id: number;
+  code: string;
+  title: string;
+  type: "fixed" | "percent";
+  value: number;
+  minimumSubtotal: number;
+  expiresAt: string;
+};
+
 function newRequestId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
   return `req-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -26,19 +36,58 @@ export function CheckoutForm({ user, slots, acceptingOrders }: Props) {
   const [contactPhone, setContactPhone] = useState(user.phone ?? "");
   const [contactEmail] = useState(user.email);
   const [note, setNote] = useState("");
-  const [locationId, setLocationId] = useState<number | null>(null);
+  const [locationId, setLocationId] = useState<number | null>(() => {
+    const uniqueLocationIds = [...new Set(slots.map((slot) => slot.locationId))];
+    return uniqueLocationIds.length === 1 ? uniqueLocationIds[0] : null;
+  });
   const [date, setDate] = useState<string | null>(null);
   const [slotId, setSlotId] = useState<number | null>(null);
   const [agree, setAgree] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [synced, setSynced] = useState(false);
+  const [availableCoupons, setAvailableCoupons] = useState<AvailableCoupon[]>([]);
+  const [pointsBalance, setPointsBalance] = useState(0);
+  const [selectedCouponId, setSelectedCouponId] = useState<number | null>(null);
+  const [pointsToUse, setPointsToUse] = useState(0);
+  const [rewardError, setRewardError] = useState<string | null>(null);
   const requestId = useRef<string>(newRequestId());
 
   useEffect(() => {
     if (!isReady) return;
     void syncPrices().finally(() => setSynced(true));
   }, [isReady, syncPrices]);
+
+  useEffect(() => {
+    let active = true;
+    void fetch("/api/account/rewards")
+      .then(async (response) => {
+        const data = (await response.json()) as {
+          ok?: boolean;
+          error?: string;
+          items?: AvailableCoupon[];
+          points?: { balance: number };
+        };
+        if (!response.ok || !data.ok) throw new Error(data.error ?? "無法讀取優惠券與點數。");
+        if (!active) return;
+        setAvailableCoupons(data.items ?? []);
+        setPointsBalance(data.points?.balance ?? 0);
+      })
+      .catch((loadError) => {
+        if (active) setRewardError(loadError instanceof Error ? loadError.message : "無法讀取優惠券與點數。");
+      });
+    return () => { active = false; };
+  }, []);
+
+  const selectedCoupon = availableCoupons.find((coupon) => coupon.id === selectedCouponId) ?? null;
+  const couponDiscount = selectedCoupon && subtotal >= selectedCoupon.minimumSubtotal
+    ? selectedCoupon.type === "percent"
+      ? Math.floor((subtotal * selectedCoupon.value) / 100)
+      : Math.min(subtotal, selectedCoupon.value)
+    : 0;
+  const maximumPoints = Math.max(0, subtotal - couponDiscount);
+  const appliedPoints = Math.min(pointsToUse, pointsBalance, maximumPoints);
+  const estimatedTotal = Math.max(0, subtotal - couponDiscount - appliedPoints);
 
   const locations = useMemo(() => {
     const map = new Map<number, { id: number; name: string; description: string | null; notes: string | null }>();
@@ -55,10 +104,6 @@ export function CheckoutForm({ user, slots, acceptingOrders }: Props) {
     return Array.from(map.values());
   }, [slots]);
 
-  useEffect(() => {
-    if (locationId == null && locations.length === 1) setLocationId(locations[0].id);
-  }, [locations, locationId]);
-
   const dates = useMemo(() => {
     const set = new Set<string>();
     for (const slot of slots) if (slot.locationId === locationId) set.add(slot.pickupDate);
@@ -73,7 +118,14 @@ export function CheckoutForm({ user, slots, acceptingOrders }: Props) {
   const selectedLocation = locations.find((item) => item.id === locationId) ?? null;
   const selectedSlot = slots.find((slot) => slot.id === slotId) ?? null;
   const canSubmit =
-    acceptingOrders && slots.length > 0 && lines.length > 0 && !!selectedSlot && selectedSlot.remaining > 0 && agree && !pending;
+    acceptingOrders &&
+    slots.length > 0 &&
+    lines.length > 0 &&
+    !!selectedSlot &&
+    selectedSlot.remaining > 0 &&
+    (!selectedCoupon || subtotal >= selectedCoupon.minimumSubtotal) &&
+    agree &&
+    !pending;
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -95,6 +147,8 @@ export function CheckoutForm({ user, slots, acceptingOrders }: Props) {
           contactEmail,
           note,
           clientRequestId: requestId.current,
+          userCouponId: selectedCouponId,
+          pointsToUse: appliedPoints,
         }),
       });
       const data = (await response.json()) as { ok?: boolean; error?: string; orderId?: number; orderNo?: string; notificationSent?: boolean; notificationWarning?: string };
@@ -322,16 +376,66 @@ export function CheckoutForm({ user, slots, acceptingOrders }: Props) {
               <dt className="text-cocoa-soft">商品小計</dt>
               <dd>{formatPrice(subtotal)}</dd>
             </div>
+            <div className="mt-4 border-t border-mist/70 pt-4">
+              <label htmlFor="checkout-coupon" className="field-label">使用優惠券</label>
+              <select
+                id="checkout-coupon"
+                className="field"
+                value={selectedCouponId ?? ""}
+                onChange={(event) => setSelectedCouponId(event.target.value ? Number(event.target.value) : null)}
+              >
+                <option value="">不使用優惠券</option>
+                {availableCoupons.map((coupon) => (
+                  <option key={coupon.id} value={coupon.id}>
+                    {coupon.title}（{coupon.code}）
+                  </option>
+                ))}
+              </select>
+              {selectedCoupon && subtotal < selectedCoupon.minimumSubtotal ? (
+                <p className="mt-1 text-xs text-[#8A4B3D]">此券需消費滿 NT${selectedCoupon.minimumSubtotal}；目前不符合使用條件。</p>
+              ) : null}
+              {selectedCoupon && couponDiscount > 0 ? (
+                <p className="mt-1 text-xs text-cocoa-soft">優惠券折抵 −{formatPrice(couponDiscount)}</p>
+              ) : null}
+              {!availableCoupons.length && !rewardError ? <p className="mt-1 text-xs text-cocoa-soft">目前沒有可用優惠券。</p> : null}
+              {rewardError ? <p role="alert" className="mt-1 text-xs text-[#8A4B3D]">{rewardError}</p> : null}
+            </div>
+            <div className="mt-4">
+              <label htmlFor="checkout-points" className="field-label">使用點數（目前 {pointsBalance} 點，1 點折 NT$1）</label>
+              <input
+                id="checkout-points"
+                className="field"
+                type="number"
+                min="0"
+                max={Math.min(pointsBalance, maximumPoints)}
+                step="1"
+                value={appliedPoints}
+                onChange={(event) => setPointsToUse(Math.max(0, Math.trunc(Number(event.target.value) || 0)))}
+              />
+              <p className="mt-1 text-xs text-cocoa-soft">可與一張優惠券併用，點數折抵不超過折價後的商品小計。</p>
+            </div>
+            {couponDiscount > 0 ? (
+              <div className="flex justify-between text-sm">
+                <dt className="text-cocoa-soft">優惠券折抵</dt>
+                <dd>−{formatPrice(couponDiscount)}</dd>
+              </div>
+            ) : null}
+            {appliedPoints > 0 ? (
+              <div className="flex justify-between text-sm">
+                <dt className="text-cocoa-soft">點數折抵</dt>
+                <dd>−{formatPrice(appliedPoints)}</dd>
+              </div>
+            ) : null}
             <div className="flex justify-between">
               <dt className="text-cocoa-soft">運費</dt>
               <dd className="text-cocoa-soft">不適用（面交）</dd>
             </div>
             <div className="flex justify-between border-t border-mist/70 pt-3">
               <dt className="text-cocoa">訂單總金額</dt>
-              <dd className="font-serif text-2xl text-cocoa">{formatPrice(subtotal)}</dd>
+              <dd className="font-serif text-2xl text-cocoa">{formatPrice(estimatedTotal)}</dd>
             </div>
           </dl>
-          <p className="mt-2 text-xs text-cocoa-soft">總金額將由伺服器依目前商品價格重新計算。</p>
+          <p className="mt-2 text-xs text-cocoa-soft">總金額由伺服器依目前商品價格、優惠券與可用點數重新計算。訂單完成後依實付商品金額每滿 NT$50 回饋 1 點，不足 50 元無條件捨去。</p>
 
           <div className="mt-5 rounded-lg bg-cream-deep/80 px-4 py-3 text-xs leading-relaxed text-cocoa-soft">
             <p className="text-cocoa">

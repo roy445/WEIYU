@@ -67,6 +67,67 @@
     padding-inline: 1.25rem;
   }
 
+  .coupon-ticket-notch {
+    position: absolute;
+    z-index: 2;
+    top: 50%;
+    width: 1.4rem;
+    height: 1.4rem;
+    transform: translateY(-50%);
+    border: 1px solid rgb(168 117 74 / 70%);
+    border-radius: 9999px;
+    background: var(--color-cream);
+  }
+
+  .print-only {
+    display: none;
+  }
+
+  @media print {
+    body * {
+      visibility: hidden !important;
+    }
+
+    .printable-order,
+    .printable-order * {
+      visibility: visible !important;
+    }
+
+    .printable-order {
+      position: absolute !important;
+      inset: 0 auto auto 0 !important;
+      width: 100% !important;
+      max-width: none !important;
+      margin: 0 !important;
+      padding: 20px !important;
+      color: #211a14 !important;
+      background: #fff !important;
+    }
+
+    .print-hidden {
+      display: none !important;
+    }
+
+    .print-only {
+      display: block !important;
+    }
+
+    .surface {
+      border-color: #999 !important;
+      background: #fff !important;
+      box-shadow: none !important;
+    }
+
+    a {
+      color: inherit !important;
+      text-decoration: none !important;
+    }
+
+    @page {
+      margin: 12mm;
+    }
+  }
+
   @media (min-width: 768px) {
     .container-wy {
       padding-inline: 2rem;

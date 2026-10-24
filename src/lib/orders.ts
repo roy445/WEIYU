@@ -1,20 +1,25 @@
 import "server-only";
 
 import { randomBytes } from "node:crypto";
-import { and, eq, gte, inArray, isNotNull, ne, sql } from "drizzle-orm";
+import { and, eq, gte, gt, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   adminActionLogs,
+  coupons,
   orderItems,
+  orderPointUses,
   orders,
+  pointLots,
   pickupLocations,
   pickupSlots,
   productVariants,
   products,
   shopSettings,
+  userCoupons,
 } from "@/db/schema";
 import { todayInTaipei } from "./brand";
 import type { SessionUser } from "./auth";
+import { addThreeMonths } from "./rewards";
 
 export class OrderError extends Error {
   status: number;
@@ -33,6 +38,8 @@ export type PlaceOrderInput = {
   contactEmail: string;
   note?: string;
   clientRequestId?: string;
+  userCouponId?: number | null;
+  pointsToUse?: number;
 };
 
 export type PlaceOrderResult = {
@@ -89,9 +96,26 @@ export async function placeOrder(userId: number, input: PlaceOrderInput): Promis
   }
   const note = input.note?.trim().slice(0, 500) || null;
   const requestId = input.clientRequestId?.trim().slice(0, 80) || null;
+  const userCouponId = input.userCouponId ?? null;
+  const pointsToUse = input.pointsToUse ?? 0;
+  if (userCouponId !== null && (!Number.isInteger(userCouponId) || userCouponId <= 0)) {
+    throw new OrderError("優惠券選擇不正確，請重新整理頁面。");
+  }
+  if (!Number.isInteger(pointsToUse) || pointsToUse < 0 || pointsToUse > 1_000_000) {
+    throw new OrderError("點數折抵數量不正確。");
+  }
 
   try {
-    return await runPlaceOrder(userId, normalized, { contactName, contactPhone, contactEmail, note, requestId, pickupSlotId: input.pickupSlotId });
+    return await runPlaceOrder(userId, normalized, {
+      contactName,
+      contactPhone,
+      contactEmail,
+      note,
+      requestId,
+      pickupSlotId: input.pickupSlotId,
+      userCouponId,
+      pointsToUse,
+    });
   } catch (error) {
     // 同一個 clientRequestId 被同時送出兩次：第二筆會撞到唯一索引，改回傳已建立的訂單
     const code = (error as { code?: string })?.code;
@@ -117,6 +141,8 @@ type OrderMeta = {
   note: string | null;
   requestId: string | null;
   pickupSlotId: number;
+  userCouponId: number | null;
+  pointsToUse: number;
 };
 
 async function runPlaceOrder(userId: number, normalized: NormalizedItem[], meta: OrderMeta): Promise<PlaceOrderResult> {
@@ -246,6 +272,50 @@ async function runPlaceOrder(userId: number, normalized: NormalizedItem[], meta:
     const subtotal = lines.reduce((sum, line) => sum + line.lineTotal, 0);
     if (subtotal <= 0) throw new OrderError("訂單金額不正確，請重新整理。");
 
+    let couponDiscount = 0;
+    let couponTitle: string | null = null;
+    if (meta.userCouponId !== null) {
+      const userCouponRows = await tx
+        .select()
+        .from(userCoupons)
+        .where(and(
+          eq(userCoupons.id, meta.userCouponId),
+          eq(userCoupons.userId, userId),
+          eq(userCoupons.status, "available"),
+        ))
+        .for("update")
+        .limit(1);
+      const userCoupon = userCouponRows[0];
+      if (!userCoupon) throw new OrderError("此優惠券已使用或不屬於你的帳號。", 409);
+      const couponRows = await tx.select().from(coupons).where(eq(coupons.id, userCoupon.couponId)).for("update").limit(1);
+      const coupon = couponRows[0];
+      if (!coupon || coupon.type === "points" || coupon.expiresAt <= new Date()) {
+        throw new OrderError("此優惠券已過期或不能用於訂單折抵。", 409);
+      }
+      if (subtotal < coupon.minimumSubtotal) throw new OrderError(`此優惠券需消費滿 NT$${coupon.minimumSubtotal} 才能使用。`, 409);
+      couponDiscount = coupon.type === "percent"
+        ? Math.floor((subtotal * coupon.value) / 100)
+        : Math.min(subtotal, coupon.value);
+      couponTitle = coupon.title;
+    }
+
+    const maxPointsUsable = subtotal - couponDiscount;
+    if (meta.pointsToUse > maxPointsUsable) {
+      throw new OrderError(`目前最多可使用 ${maxPointsUsable} 點，點數折抵不可高於優惠券折抵後的商品金額。`, 409);
+    }
+    const pointRows = meta.pointsToUse > 0
+      ? await tx
+        .select()
+        .from(pointLots)
+        .where(and(eq(pointLots.userId, userId), gt(pointLots.remaining, 0), gt(pointLots.expiresAt, new Date())))
+        .orderBy(pointLots.expiresAt, pointLots.createdAt, pointLots.id)
+        .for("update")
+      : [];
+    const availablePoints = pointRows.reduce((total, lot) => total + lot.remaining, 0);
+    if (meta.pointsToUse > availablePoints) {
+      throw new OrderError(`可用點數不足，目前只有 ${availablePoints} 點。`, 409);
+    }
+
     // 扣庫存（條件式更新，避免負庫存與超賣）
     for (const line of lines) {
       const updated = await tx
@@ -276,6 +346,8 @@ async function runPlaceOrder(userId: number, normalized: NormalizedItem[], meta:
       }
     }
 
+    const total = subtotal - couponDiscount - meta.pointsToUse;
+    const pointsEarned = Math.floor(total / 50);
     const orderNo = makeOrderNo();
     const inserted = await tx
       .insert(orders)
@@ -286,7 +358,11 @@ async function runPlaceOrder(userId: number, normalized: NormalizedItem[], meta:
         paymentStatus: "unpaid",
         paymentMethod: "cash_on_pickup",
         subtotal,
-        total: subtotal,
+        couponDiscount,
+        couponTitle,
+        pointsUsed: meta.pointsToUse,
+        pointsEarned,
+        total,
         contactName,
         contactEmail,
         contactPhone,
@@ -319,7 +395,22 @@ async function runPlaceOrder(userId: number, normalized: NormalizedItem[], meta:
       })),
     );
 
-    return { orderId: created.id, orderNo: created.orderNo, total: subtotal, alreadyExisted: false };
+    if (meta.userCouponId !== null) {
+      await tx.update(userCoupons)
+        .set({ status: "used", usedAt: new Date(), usedOrderId: created.id })
+        .where(eq(userCoupons.id, meta.userCouponId));
+    }
+
+    let pointsRemainingToUse = meta.pointsToUse;
+    for (const lot of pointRows) {
+      if (pointsRemainingToUse <= 0) break;
+      const used = Math.min(lot.remaining, pointsRemainingToUse);
+      await tx.update(pointLots).set({ remaining: sql`${pointLots.remaining} - ${used}` }).where(eq(pointLots.id, lot.id));
+      await tx.insert(orderPointUses).values({ orderId: created.id, pointLotId: lot.id, amount: used });
+      pointsRemainingToUse -= used;
+    }
+
+    return { orderId: created.id, orderNo: created.orderNo, total, alreadyExisted: false };
   });
 }
 
@@ -362,6 +453,19 @@ export async function applyAdminOrderAction(
         status = "completed";
         patch.status = status;
         patch.completedAt = now;
+        const earned = Math.floor(order.total / 50);
+        patch.pointsEarned = earned;
+        if (earned > 0) {
+          await tx.insert(pointLots).values({
+            userId: order.userId,
+            amount: earned,
+            remaining: earned,
+            source: "order",
+            sourceOrderId: order.id,
+            createdAt: now,
+            expiresAt: addThreeMonths(now),
+          });
+        }
         break;
       }
       case "cancel": {
@@ -389,16 +493,46 @@ export async function applyAdminOrderAction(
           }
           patch.stockRestored = true;
         }
+        const uses = await tx
+          .select()
+          .from(orderPointUses)
+          .where(and(eq(orderPointUses.orderId, order.id), sql`${orderPointUses.restoredAt} IS NULL`))
+          .for("update");
+        for (const use of uses) {
+          await tx
+            .update(pointLots)
+            .set({ remaining: sql`${pointLots.remaining} + ${use.amount}` })
+            .where(and(eq(pointLots.id, use.pointLotId), gt(pointLots.expiresAt, now)));
+          await tx.update(orderPointUses).set({ restoredAt: now }).where(eq(orderPointUses.id, use.id));
+        }
+        const usedCoupons = await tx
+          .select({ id: userCoupons.id, couponId: userCoupons.couponId })
+          .from(userCoupons)
+          .where(and(eq(userCoupons.usedOrderId, order.id), eq(userCoupons.status, "used")))
+          .for("update");
+        for (const usedCoupon of usedCoupons) {
+          const couponRows = await tx.select({ expiresAt: coupons.expiresAt, isActive: coupons.isActive }).from(coupons).where(eq(coupons.id, usedCoupon.couponId)).limit(1);
+          const coupon = couponRows[0];
+          if (coupon && coupon.expiresAt > now) {
+            await tx.update(userCoupons)
+              .set({ status: "available", usedAt: null, usedOrderId: null })
+              .where(eq(userCoupons.id, usedCoupon.id));
+          }
+        }
         break;
       }
       case "mark_paid": {
         if (status === "cancelled") throw new OrderError("已取消的訂單不可標記為已付款。", 409);
+        if (paymentStatus === "paid") throw new OrderError("這筆訂單已標記為已付款，請勿重複操作。", 409);
+        if (paymentStatus === "refunded") throw new OrderError("已退款的訂單不可再次標記為已付款。", 409);
         paymentStatus = "paid";
         patch.paymentStatus = paymentStatus;
         patch.paidAt = now;
         break;
       }
       case "mark_unpaid": {
+        if (paymentStatus === "unpaid") throw new OrderError("這筆訂單已是尚未付款，無需重複操作。", 409);
+        if (paymentStatus === "refunded") throw new OrderError("已退款的訂單不可改回尚未付款。", 409);
         paymentStatus = "unpaid";
         patch.paymentStatus = paymentStatus;
         patch.paidAt = null;

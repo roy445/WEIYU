@@ -5,6 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { orderItems, orders } from "@/db/schema";
 import { SafeImage } from "@/components/safe-image";
+import { PrintButton } from "@/components/print-button";
 import { OrderStatusBadge, PaymentStatusBadge } from "@/components/status-badge";
 import { getCurrentUser } from "@/lib/auth";
 import { formatDate, formatDateTime, formatPrice } from "@/lib/brand";
@@ -38,9 +39,9 @@ export default async function OrderDetailPage({ params, searchParams }: Props) {
   const currentIndex = timeline.findIndex((step) => step.key === order.status);
 
   return (
-    <div className="container-wy py-12 md:py-16">
+    <div className="container-wy printable-order py-12 md:py-16">
       {placed === "1" ? (
-        <section aria-labelledby="order-thanks" className="mb-10 overflow-hidden rounded-2xl border border-[#C9D6C6] bg-[#F2F7F0] p-6 text-[#3F5B41] animate-rise sm:p-9">
+        <section aria-labelledby="order-thanks" className="print-hidden mb-10 overflow-hidden rounded-2xl border border-[#C9D6C6] bg-[#F2F7F0] p-6 text-[#3F5B41] animate-rise sm:p-9">
           <div className="mx-auto max-w-2xl text-center">
             <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-white/80">
               <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" aria-hidden="true">
@@ -75,10 +76,15 @@ export default async function OrderDetailPage({ params, searchParams }: Props) {
           <h1 className="mt-3 text-3xl sm:text-4xl">訂單 {order.orderNo}</h1>
           <p className="mt-2 text-xs text-cocoa-soft">建立於 {formatDateTime(order.createdAt)}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 print-hidden">
+          <PrintButton />
           <OrderStatusBadge status={order.status} />
           <PaymentStatusBadge status={order.paymentStatus} />
         </div>
+      </div>
+      <div className="print-only mt-4 border-b border-mist pb-4 text-sm">
+        <p>唯遇甜所｜顧客訂單明細</p>
+        <p className="mt-1">訂單日期：{formatDateTime(order.createdAt)} · 訂單狀態：{order.status} · 付款狀態：{order.paymentStatus}</p>
       </div>
 
       {order.status !== "cancelled" ? (
@@ -127,6 +133,12 @@ export default async function OrderDetailPage({ params, searchParams }: Props) {
             <p className="text-sm text-cocoa-soft">訂單總金額（下單時價格快照）</p>
             <p className="font-serif text-2xl">{formatPrice(order.total)}</p>
           </div>
+          <dl className="mt-3 space-y-1 border-t border-mist/60 pt-3 text-sm">
+            <div className="flex justify-between"><dt className="text-cocoa-soft">商品小計</dt><dd>{formatPrice(order.subtotal)}</dd></div>
+            {order.couponDiscount > 0 ? <div className="flex justify-between"><dt className="text-cocoa-soft">優惠券{order.couponTitle ? `（${order.couponTitle}）` : ""}</dt><dd>−{formatPrice(order.couponDiscount)}</dd></div> : null}
+            {order.pointsUsed > 0 ? <div className="flex justify-between"><dt className="text-cocoa-soft">點數折抵（{order.pointsUsed} 點）</dt><dd>−{formatPrice(order.pointsUsed)}</dd></div> : null}
+            {order.status === "completed" && order.pointsEarned > 0 ? <div className="flex justify-between"><dt className="text-cocoa-soft">本筆回饋點數</dt><dd>{order.pointsEarned} 點</dd></div> : null}
+          </dl>
           {order.customerNote ? (
             <div className="mt-6 rounded-lg bg-cream-deep/70 px-5 py-4 text-sm">
               <p className="text-xs tracking-[0.18em] text-caramel-deep">你的備註</p>

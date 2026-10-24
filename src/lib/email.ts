@@ -1,5 +1,6 @@
 import "server-only";
 
+import { join } from "node:path";
 import nodemailer, { type SendMailOptions } from "nodemailer";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
@@ -81,12 +82,12 @@ export function assertEmailConfiguration(): void {
   getEmailConfig();
 }
 
-function brandedEmail(title: string, body: string, siteUrl: string, logoUrl: string, shopName: string, brandNameEn: string): string {
+function brandedEmail(title: string, body: string, shopName: string, brandNameEn: string): string {
   return `<!doctype html>
 <html lang="zh-Hant"><body style="margin:0;background:#fbf7f0;color:#543b2b;font-family:Arial,'Microsoft JhengHei',sans-serif">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#fbf7f0;padding:32px 12px">
 <tr><td align="center"><table role="presentation" width="560" cellspacing="0" cellpadding="0" style="max-width:560px;width:100%;background:#fffdf8;border:1px solid #e7d8c3;border-radius:16px">
-<tr><td align="center" style="padding:32px 24px 18px"><img src="${escapeHtml(logoUrl)}" width="128" height="128" alt="${escapeHtml(brandNameEn)} ${escapeHtml(shopName)}" style="display:block;width:128px;height:128px;object-fit:contain;border:0;outline:none;text-decoration:none"><p style="margin:12px 0 0;color:#8a5c36;font-size:12px;letter-spacing:5px">${escapeHtml(brandNameEn)} ${escapeHtml(shopName)}</p></td></tr>
+<tr><td align="center" style="padding:32px 24px 18px"><img src="cid:weiyu-logo" width="96" height="96" alt="${escapeHtml(brandNameEn)} ${escapeHtml(shopName)}" style="display:block;width:96px;height:96px;object-fit:contain;border:0;outline:none;text-decoration:none"><p style="margin:12px 0 0;color:#8a5c36;font-size:12px;letter-spacing:5px">${escapeHtml(brandNameEn)} ${escapeHtml(shopName)}</p></td></tr>
 <tr><td style="padding:8px 32px 36px"><h1 style="margin:0 0 18px;font-family:Georgia,serif;font-size:26px;font-weight:500;color:#543b2b">${escapeHtml(title)}</h1>${body}<p style="margin:30px 0 0;border-top:1px solid #e7d8c3;padding-top:18px;color:#6f5545;font-size:12px;line-height:1.8">此郵件由 WEIYU 唯遇甜所自動寄出。若有疑問，請透過網站聯絡方式與我們聯繫。</p></td></tr>
 </table></td></tr></table></body></html>`;
 }
@@ -94,14 +95,17 @@ function brandedEmail(title: string, body: string, siteUrl: string, logoUrl: str
 export async function sendBrandedEmail(to: string, subject: string, title: string, body: string): Promise<void> {
   const config = getEmailConfig();
   const settings = await getShopSettings();
-  const logoUrl = settings.logoUrl
-    ? new URL(settings.logoUrl, `${config.siteUrl}/`).toString()
-    : `${config.siteUrl}/brand/logo.png`;
   await sendMailWithRetry(config.transportOptions, {
     from: config.from,
     to,
     subject,
-    html: brandedEmail(title, body, config.siteUrl, logoUrl, settings.shopName, settings.brandNameEn),
+    html: brandedEmail(title, body, settings.shopName, settings.brandNameEn),
+    attachments: [{
+      filename: "weiyu-logo.png",
+      path: join(process.cwd(), "public", "brand", "logo.png"),
+      cid: "weiyu-logo",
+      contentDisposition: "inline",
+    }],
   });
 }
 
@@ -157,10 +161,16 @@ export async function sendOrderEmail(orderId: number, kind: "created" | "status"
   const paymentLabel = PAYMENT_STATUS[order.paymentStatus as keyof typeof PAYMENT_STATUS] ?? order.paymentStatus;
   const title = kind === "created" ? "已收到你的訂單" : "訂單狀態已更新";
   const intro = kind === "created" ? "你的訂單已送出，以下是訂單摘要。店家確認後會再通知你。" : "你的訂單有新的處理進度。";
+  const rewardLines = [
+    `<p style="margin:0 0 6px"><strong>商品小計：</strong>${formatPrice(order.subtotal)}</p>`,
+    order.couponDiscount > 0 ? `<p style="margin:0 0 6px"><strong>優惠券${order.couponTitle ? `（${escapeHtml(order.couponTitle)}）` : ""}：</strong>−${formatPrice(order.couponDiscount)}</p>` : "",
+    order.pointsUsed > 0 ? `<p style="margin:0 0 6px"><strong>點數折抵（${order.pointsUsed} 點）：</strong>−${formatPrice(order.pointsUsed)}</p>` : "",
+  ].join("");
   const body = `<p style="font-size:15px;line-height:1.8;color:#6f5545">${intro}</p>
 <div style="border-radius:10px;background:#f5eee2;padding:16px"><p style="margin:0 0 8px"><strong>訂單編號：</strong>${escapeHtml(order.orderNo)}</p><p style="margin:0 0 8px"><strong>訂單狀態：</strong>${escapeHtml(statusLabel)}</p><p style="margin:0 0 8px"><strong>付款狀態：</strong>${escapeHtml(paymentLabel)}</p><p style="margin:0"><strong>面交：</strong>${escapeHtml(order.pickupDate)} ${escapeHtml(order.pickupTime)} · ${escapeHtml(order.pickupLocationName)}</p></div>
 <ul style="padding:8px 0 8px 20px;line-height:1.6">${itemList}</ul>
-<p style="font-size:14px;color:#543b2b"><strong>合計：${formatPrice(order.total)}</strong></p>
+<div style="margin:16px 0;border-top:1px solid #e7d8c3;padding-top:12px;color:#543b2b">${rewardLines}<p style="margin:8px 0 0;font-size:14px"><strong>合計：${formatPrice(order.total)}</strong></p>${order.status === "completed" && order.pointsEarned > 0 ? `<p style="margin:8px 0 0;font-size:13px"><strong>本筆回饋點數：${order.pointsEarned} 點</strong></p>` : ""}</div>
+${order.adminNote?.trim() ? `<div style="margin:20px 0;border-left:3px solid #a8754a;background:#f5eee2;padding:12px 16px;color:#543b2b"><strong>店家備註</strong><p style="margin:6px 0 0;white-space:pre-line;line-height:1.7">${escapeHtml(order.adminNote.trim())}</p></div>` : ""}
 <p style="font-size:12px;color:#6f5545"><a href="${escapeHtml(`${process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "")}/account/orders/${order.id}`)}" style="color:#8a5c36">查看訂單詳情</a></p>`;
   await sendBrandedEmail(order.contactEmail, `訂單 ${order.orderNo}｜${title}`, title, body);
 }

@@ -5,6 +5,7 @@ import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { adminActionLogs, orderItems, orders, users } from "@/db/schema";
 import { OrderActions } from "@/components/admin/order-actions";
+import { PrintButton } from "@/components/print-button";
 import { SafeImage } from "@/components/safe-image";
 import { OrderStatusBadge, PaymentStatusBadge } from "@/components/status-badge";
 import { formatDate, formatDateTime, formatPrice } from "@/lib/brand";
@@ -34,7 +35,7 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
     .limit(20);
 
   return (
-    <div className="space-y-8">
+    <div className="printable-order space-y-8">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <Link href="/admin/orders" className="text-xs tracking-[0.1em] text-cocoa-soft hover:text-caramel-deep">← 回訂單列表</Link>
@@ -42,14 +43,23 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
           <p className="mt-1 text-xs text-cocoa-soft">建立於 {formatDateTime(order.createdAt)} · 最後更新 {formatDateTime(order.updatedAt)}</p>
         </div>
         <div className="flex gap-2">
-          <OrderStatusBadge status={order.status} />
-          <PaymentStatusBadge status={order.paymentStatus} />
+          <span className="print-hidden flex gap-2">
+            <PrintButton />
+            <OrderStatusBadge status={order.status} />
+            <PaymentStatusBadge status={order.paymentStatus} />
+          </span>
         </div>
       </div>
+      <section className="print-only border-y border-mist py-3 text-sm">
+        <h2 className="text-xl">唯遇甜所｜店家訂單處理單</h2>
+        <p className="mt-1">下單時間：{formatDateTime(order.createdAt)} · 最後更新：{formatDateTime(order.updatedAt)}</p>
+        <p>訂單狀態：{order.status} · 付款狀態：{order.paymentStatus} · 會員：{row.memberName ?? "—"}（{row.memberEmail ?? "—"}）</p>
+        <p>電話：{order.contactPhone} · Email：{order.contactEmail}</p>
+      </section>
 
       <div className="grid gap-8 xl:grid-cols-[1.2fr_0.8fr]">
         <div className="space-y-8">
-          <section className="surface rounded-lg p-5">
+          <section className="surface print-hidden rounded-lg p-5">
             <h2 className="text-xl">商品明細</h2>
             <ul className="mt-3 divide-y divide-mist/60">
               {items.map((item) => (
@@ -69,6 +79,12 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
               <p className="text-sm text-cocoa-soft">訂單總金額（下單時快照）</p>
               <p className="font-serif text-2xl">{formatPrice(order.total)}</p>
             </div>
+            <dl className="mt-3 space-y-1 border-t border-mist/60 pt-3 text-sm">
+              <div className="flex justify-between"><dt>商品小計</dt><dd>{formatPrice(order.subtotal)}</dd></div>
+              {order.couponDiscount > 0 ? <div className="flex justify-between"><dt>優惠券{order.couponTitle ? `（${order.couponTitle}）` : ""}</dt><dd>−{formatPrice(order.couponDiscount)}</dd></div> : null}
+              {order.pointsUsed > 0 ? <div className="flex justify-between"><dt>點數折抵（{order.pointsUsed} 點）</dt><dd>−{formatPrice(order.pointsUsed)}</dd></div> : null}
+              {order.pointsEarned > 0 ? <div className="flex justify-between"><dt>完成後回饋點數</dt><dd>{order.pointsEarned} 點</dd></div> : null}
+            </dl>
             {order.customerNote ? (
               <div className="mt-4 rounded bg-cream-deep/80 px-4 py-3 text-sm">
                 <p className="text-xs tracking-[0.18em] text-caramel-deep">顧客備註</p>
@@ -77,7 +93,7 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
             ) : null}
           </section>
 
-          <section className="surface rounded-lg p-5">
+          <section className="surface print-hidden rounded-lg p-5">
             <h2 className="text-xl">處理訂單</h2>
             <div className="mt-4">
               <OrderActions orderId={order.id} status={order.status} paymentStatus={order.paymentStatus} adminNote={order.adminNote} />

@@ -49,6 +49,8 @@ export async function POST(request: Request) {
       contactEmail: asString(body.contactEmail, 160),
       note: asString(body.note, 500),
       clientRequestId: asString(body.clientRequestId, 80),
+      userCouponId: body.userCouponId == null ? null : asInt(body.userCouponId),
+      pointsToUse: asInt(body.pointsToUse, 0),
     });
     let notificationSent: boolean | undefined;
     if (!result.alreadyExisted) {

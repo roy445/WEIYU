@@ -37,6 +37,41 @@ export const users = pgTable(
   (table) => [uniqueIndex("users_email_unique").on(table.email)],
 );
 
+export const avatarUpdates = pgTable(
+  "avatar_updates",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    status: text("status").notNull().default("pending"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("avatar_updates_user_created_idx").on(table.userId, table.createdAt)],
+);
+
+export const coupons = pgTable(
+  "coupons",
+  {
+    id: serial("id").primaryKey(),
+    code: text("code").notNull(),
+    title: text("title").notNull(),
+    type: text("type").notNull(),
+    value: integer("value").notNull(),
+    minimumSubtotal: integer("minimum_subtotal").notNull().default(0),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    maxRedemptions: integer("max_redemptions"),
+    redemptionCount: integer("redemption_count").notNull().default(0),
+    isActive: boolean("is_active").notNull().default(true),
+    createdBy: integer("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("coupons_code_unique").on(table.code),
+    index("coupons_active_expiry_idx").on(table.isActive, table.expiresAt),
+  ],
+);
+
 export const sessions = pgTable(
   "sessions",
   {
@@ -240,6 +275,10 @@ export const orders = pgTable(
     paymentStatus: text("payment_status").notNull().default("unpaid"),
     paymentMethod: text("payment_method").notNull().default("cash_on_pickup"),
     subtotal: integer("subtotal").notNull(),
+    couponDiscount: integer("coupon_discount").notNull().default(0),
+    couponTitle: text("coupon_title"),
+    pointsUsed: integer("points_used").notNull().default(0),
+    pointsEarned: integer("points_earned").notNull().default(0),
     total: integer("total").notNull(),
     contactName: text("contact_name").notNull(),
     contactEmail: text("contact_email").notNull(),
@@ -292,6 +331,61 @@ export const orderItems = pgTable(
     lineTotal: integer("line_total").notNull(),
   },
   (table) => [index("order_items_order_idx").on(table.orderId)],
+);
+
+export const userCoupons = pgTable(
+  "user_coupons",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    couponId: integer("coupon_id")
+      .notNull()
+      .references(() => coupons.id, { onDelete: "restrict" }),
+    status: text("status").notNull().default("available"),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }).notNull().defaultNow(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    usedOrderId: integer("used_order_id").references(() => orders.id, { onDelete: "set null" }),
+  },
+  (table) => [
+    uniqueIndex("user_coupons_user_coupon_unique").on(table.userId, table.couponId),
+    index("user_coupons_user_status_idx").on(table.userId, table.status),
+  ],
+);
+
+export const pointLots = pgTable(
+  "point_lots",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    amount: integer("amount").notNull(),
+    remaining: integer("remaining").notNull(),
+    source: text("source").notNull(),
+    sourceOrderId: integer("source_order_id").references(() => orders.id, { onDelete: "set null" }),
+    sourceCouponId: integer("source_coupon_id").references(() => coupons.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [index("point_lots_user_expiry_idx").on(table.userId, table.expiresAt)],
+);
+
+export const orderPointUses = pgTable(
+  "order_point_uses",
+  {
+    id: serial("id").primaryKey(),
+    orderId: integer("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    pointLotId: integer("point_lot_id")
+      .notNull()
+      .references(() => pointLots.id, { onDelete: "restrict" }),
+    amount: integer("amount").notNull(),
+    restoredAt: timestamp("restored_at", { withTimezone: true }),
+  },
+  (table) => [index("order_point_uses_order_idx").on(table.orderId)],
 );
 
 export const shopSettings = pgTable("shop_settings", {

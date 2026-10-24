@@ -8,7 +8,7 @@ import { MemberAvatar } from "./member-avatar";
 import { NotificationBell } from "./notification-bell";
 import { useStore } from "./store-provider";
 
-type HeaderUser = { name: string; role: "customer" | "admin"; avatarColor: string; avatarUrl: string | null } | null;
+type HeaderUser = { name: string; role: "customer" | "admin"; avatarColor: string; avatarUrl: string | null; points: number } | null;
 
 const navItems = [
   { href: "/", label: "首頁" },
@@ -92,17 +92,12 @@ export function SiteHeader({ user }: { user: HeaderUser }) {
                   ) : null}
                   <Link
                     href="/account"
-                    className="text-[0.8rem] tracking-[0.1em] text-cocoa transition-colors hover:text-caramel-deep"
+                    aria-label={`${user.name}，前往會員中心`}
+                    className="flex items-center gap-2 text-[0.8rem] tracking-[0.1em] text-cocoa transition-colors hover:text-caramel-deep"
                   >
                     <MemberAvatar name={user.name} color={user.avatarColor} imageUrl={user.avatarUrl} size="sm" />
+                    <span className="max-w-24 truncate">{user.name}</span>
                   </Link>
-                  <Link
-                    href="/account"
-                    className="rounded-full border border-mist px-3 py-1.5 text-[0.72rem] tracking-[0.1em] text-cocoa transition-colors hover:border-caramel hover:text-caramel-deep"
-                  >
-                    會員中心
-                  </Link>
-                  <span className="max-w-24 truncate text-xs text-cocoa-soft">{user.name}</span>
                 </>
               ) : (
                 <Link
@@ -114,7 +109,24 @@ export function SiteHeader({ user }: { user: HeaderUser }) {
               )}
             </div>
 
-            {user ? <NotificationBell /> : null}
+            {user ? (
+              <>
+                <Link
+                  href="/account/coupons"
+                  className="flex items-center gap-1.5 rounded-full border border-caramel/40 px-2.5 py-2 text-xs text-caramel-deep transition-colors hover:bg-oat-soft"
+                  aria-label={`目前有 ${user.points} 點，前往點數與優惠券中心`}
+                >
+                  <svg viewBox="0 0 32 32" className="h-5 w-5" fill="none" aria-hidden="true">
+                    <path d="M5 22c0-3 3-5 7-5h9c4 0 6 2 6 5v2H5v-2Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+                    <path d="m11 17 8-8 7 3-5 6M12 16c-1-3 0-6 3-8l4 1M8 24h16" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                    <circle cx="23" cy="22" r="5" fill="#fbf7f0" stroke="currentColor" strokeWidth="1.6" />
+                    <path d="m23 19.5.8 1.7 1.9.2-1.4 1.2.4 1.8-1.7-.9-1.6.9.3-1.8-1.3-1.2 1.8-.2.8-1.7Z" stroke="currentColor" strokeWidth="1" strokeLinejoin="round" />
+                  </svg>
+                  <span>{user.points}</span>
+                </Link>
+                <NotificationBell />
+              </>
+            ) : null}
 
             <button
               type="button"
@@ -183,11 +195,11 @@ export function SiteHeader({ user }: { user: HeaderUser }) {
                 <>
                   <Link
                     href="/account"
-                    className="block rounded px-2 py-2.5 text-sm text-cocoa hover:bg-oat-soft"
+                    className="flex items-center gap-2 rounded px-2 py-2.5 text-sm text-cocoa hover:bg-oat-soft"
                   >
+                    <MemberAvatar name={user.name} color={user.avatarColor} imageUrl={user.avatarUrl} size="sm" />
                     {user.name} 的帳號
                   </Link>
-                  <Link href="/account" className="block rounded px-2 py-2.5 text-sm text-cocoa hover:bg-oat-soft">會員中心</Link>
                   <Link href="/account/announcements" className="block rounded px-2 py-2.5 text-sm text-cocoa hover:bg-oat-soft">公告通知</Link>
                   <Link href="/account/favorites" className="block rounded px-2 py-2.5 text-sm text-cocoa hover:bg-oat-soft">我的收藏</Link>
                   {user.role === "admin" ? (

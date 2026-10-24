@@ -9,6 +9,7 @@ import { LogoutButton } from "@/components/auth-forms";
 const links = [
   { href: "/admin", label: "總覽", icon: "◫" },
   { href: "/admin/orders", label: "訂單", icon: "☰" },
+  { href: "/admin/coupons", label: "優惠券", icon: "◇" },
   { href: "/admin/announcements", label: "公告", icon: "♧" },
   { href: "/admin/products", label: "商品", icon: "✿" },
   { href: "/admin/analytics", label: "商品成效", icon: "↗" },

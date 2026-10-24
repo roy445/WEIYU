@@ -9,6 +9,7 @@ import { PasswordForm } from "@/components/password-form";
 import { ProfileForm } from "@/components/profile-form";
 import { OrderStatusBadge, PaymentStatusBadge } from "@/components/status-badge";
 import { getCurrentUser } from "@/lib/auth";
+import { getPointsBalance } from "@/lib/rewards";
 import { formatDate, formatDateTime, formatPrice } from "@/lib/brand";
 
 export const metadata: Metadata = { title: "會員中心" };
@@ -20,8 +21,12 @@ export default async function AccountPage() {
 
   let myOrders: (typeof orders.$inferSelect)[] = [];
   let loadError = false;
+  let pointsBalance = 0;
   try {
-    myOrders = await db.select().from(orders).where(eq(orders.userId, user.id)).orderBy(desc(orders.createdAt));
+    [myOrders, pointsBalance] = await Promise.all([
+      db.select().from(orders).where(eq(orders.userId, user.id)).orderBy(desc(orders.createdAt)),
+      getPointsBalance(user.id),
+    ]);
   } catch {
     loadError = true;
   }
@@ -36,6 +41,7 @@ export default async function AccountPage() {
         </div>
         <div className="flex gap-3">
           <Link href="/account/favorites" className="btn btn-secondary btn-sm">我的收藏</Link>
+          <Link href="/account/coupons" className="btn btn-secondary btn-sm">甜點點數 {pointsBalance} · 優惠券</Link>
           {user.role === "admin" ? (
             <Link href="/admin" className="btn btn-dark btn-sm">
               前往管理後台

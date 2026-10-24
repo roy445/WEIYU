@@ -17,6 +17,15 @@ const defaultTerms = [
   "會員應妥善保管自己的登入資訊，並提供正確的聯絡資料，以利訂單確認及面交聯繫。",
 ];
 
+const rewardsTerms = [
+  "每筆訂單僅可使用一張已領取且尚未到期的折價券；折價券到期日、優惠方式、最低消費及可領取數量由店家設定。優惠券需於結帳選用，不能兌換現金。",
+  "折價券可與點數折抵併用。折扣券依折價後商品金額計算；百分比折扣計算結果如有小數，無條件捨去至整數元。點數折抵每點為新臺幣 1 元，最高不超過折價後商品小計。",
+  "訂單完成取貨後，依折價券及點數折抵後的實付商品金額，每滿新臺幣 50 元回饋 1 點；不足 50 元部分無條件捨去。例如實付 149 元可得 2 點。點數不計入運費，且須待訂單標記完成後才發放。",
+  "購買取得或優惠券兌換取得的點數，自取得日起 3 個月到期。結帳折抵時系統會優先使用較早到期的點數；逾期點數不可使用。",
+  "若訂單取消，已使用的未到期點數及仍有效的優惠券會退回帳戶；訂單未完成不會發放消費回饋點數。",
+  "店家得依營運需要調整或停止未來的優惠活動。已領取優惠券仍依券面所列優惠與期限使用；系統會保留訂單折抵及點數紀錄以供查詢。",
+];
+
 export default async function TermsPage() {
   const settings = await getShopSettings();
   const paragraphs = settings.termsText.trim()
@@ -34,6 +43,12 @@ export default async function TermsPage() {
       </Reveal>
       <Reveal className="surface mt-10 max-w-3xl space-y-4 rounded-lg p-6 text-sm leading-[1.9] text-cocoa-soft sm:p-8">
         {paragraphs.map((paragraph, index) => <p key={`${index}-${paragraph}`}>{paragraph}</p>)}
+        <div className="border-t border-mist/70 pt-5">
+          <h2 className="text-xl text-cocoa">點數與優惠券規則</h2>
+          <div className="mt-3 space-y-3">
+            {rewardsTerms.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+          </div>
+        </div>
         {!settings.termsText.trim() ? (
           <p className="border-t border-mist/70 pt-4 text-xs">
             以上為一般訂購資訊範本，店家應依實際營運方式及適用法規確認、調整後再使用。

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import Cropper, { type Area } from "react-easy-crop";
-import { useCallback, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { MemberAvatar } from "./member-avatar";
 import { useStore } from "./store-provider";
 
@@ -26,8 +26,22 @@ export function ProfileForm({ user }: { user: { name: string; email: string; pho
   const [zoom, setZoom] = useState(1);
   const [croppedArea, setCroppedArea] = useState<Area | null>(null);
   const [avatarPending, setAvatarPending] = useState(false);
+  const [avatarRemaining, setAvatarRemaining] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void fetch("/api/account/avatar")
+      .then(async (response) => {
+        const data = (await response.json()) as { ok?: boolean; remaining?: number };
+        if (active && response.ok && data.ok && typeof data.remaining === "number") setAvatarRemaining(data.remaining);
+      })
+      .catch(() => {
+        if (active) setAvatarRemaining(null);
+      });
+    return () => { active = false; };
+  }, []);
 
   const onCropComplete = useCallback((_area: Area, pixels: Area) => setCroppedArea(pixels), []);
 
@@ -66,6 +80,7 @@ export function ProfileForm({ user }: { user: { name: string; email: string; pho
       const data = (await response.json()) as { ok?: boolean; error?: string; avatarUrl?: string };
       if (!response.ok || !data.ok || !data.avatarUrl) throw new Error(data.error ?? "頭像上傳失敗。");
       setAvatarUrl(data.avatarUrl);
+      setAvatarRemaining((remaining) => remaining === null ? null : Math.max(0, remaining - 1));
       setImageToCrop(null);
       URL.revokeObjectURL(imageToCrop);
       toast("頭像已更新。");
@@ -106,10 +121,10 @@ export function ProfileForm({ user }: { user: { name: string; email: string; pho
       <div className="flex items-center gap-4">
         <MemberAvatar name={name} color={avatarColor} imageUrl={avatarUrl} size="lg" />
         <div className="space-y-2">
-          <p className="text-xs leading-relaxed text-cocoa-soft">可上傳照片並裁切成正方形；也可使用下方的簡約彩色首字頭像。</p>
+          <p className="text-xs leading-relaxed text-cocoa-soft">可上傳照片並裁切成正方形；也可使用下方的簡約彩色首字頭像。最近 7 天最多成功更換 3 次{avatarRemaining === null ? "" : `，目前還可更換 ${avatarRemaining} 次`}。</p>
           <label className="btn btn-secondary btn-sm w-fit cursor-pointer">
             {avatarUrl ? "更換照片" : "上傳頭像"}
-            <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => {
+            <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={avatarRemaining === 0} onChange={(event) => {
               chooseAvatar(event.target.files?.[0]);
               event.currentTarget.value = "";
             }} />

@@ -12,6 +12,7 @@ const tools = [
   { number: "D", title: "品牌與聯絡資訊", description: "調整品牌名稱、Logo、Email、電話與接單狀態。", href: "/admin/settings", action: "編輯商店設定" },
   { number: "E", title: "面交安排", description: "建立實際取貨地點、日期、時段和每時段可接單量。", href: "/admin/pickup", action: "管理面交時段" },
   { number: "F", title: "會員服務", description: "搜尋會員帳號並由訂單流程處理後續服務。", href: "/admin/members", action: "管理會員帳號" },
+  { number: "G", title: "點數與優惠券", description: "建立折價券、百分比券與點數券，設定期限、領取數量與使用條件。", href: "/admin/coupons", action: "管理優惠券" },
 ];
 
 export default async function AdminCustomizePage() {
@@ -33,7 +34,7 @@ export default async function AdminCustomizePage() {
             <p className="eyebrow">Shop toolbox</p>
             <h2 id="toolbox-heading" className="mt-2 text-2xl">快速前往功能</h2>
           </div>
-          <span className="badge bg-oat-soft text-cocoa">6 個店務工具</span>
+          <span className="badge bg-oat-soft text-cocoa">7 個店務工具</span>
         </div>
         <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {tools.map((tool) => (
