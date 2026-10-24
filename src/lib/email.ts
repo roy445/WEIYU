@@ -127,6 +127,19 @@ export async function sendAnnouncementEmail(
   await sendBrandedEmail(to, `WEIYU 公告｜${title}`, title, body);
 }
 
+export async function sendProductLaunchEmail(
+  to: string,
+  product: { name: string; slug: string; summary: string },
+): Promise<void> {
+  const { siteUrl } = getEmailConfig();
+  const productUrl = `${siteUrl}/products/${encodeURIComponent(product.slug)}`;
+  const body = `<p style="font-size:15px;line-height:1.8;color:#6f5545">你登記提醒的甜點「${escapeHtml(product.name)}」已上架，歡迎到網站查看商品資訊與訂購方式。</p>
+${product.summary ? `<p style="font-size:14px;line-height:1.8;color:#6f5545">${escapeHtml(product.summary)}</p>` : ""}
+<p style="margin:26px 0"><a href="${escapeHtml(productUrl)}" style="display:inline-block;border-radius:999px;background:#a8754a;padding:13px 24px;color:#fffaf3;text-decoration:none;font-size:14px">查看甜點</a></p>
+<p style="font-size:12px;line-height:1.7;color:#6f5545">這封信是因你登記此商品的上架提醒而寄出，不會加入其他行銷郵件。</p>`;
+  await sendBrandedEmail(to, `上架通知｜${product.name}`, `${product.name} 已上架`, body);
+}
+
 export async function sendOrderEmail(orderId: number, kind: "created" | "status"): Promise<void> {
   const rows = await db
     .select({ order: orders })

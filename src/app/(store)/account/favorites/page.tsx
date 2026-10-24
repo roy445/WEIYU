@@ -17,7 +17,16 @@ export default async function FavoritesPage() {
   if (!user) redirect("/login?next=/account/favorites");
 
   const favorites = await db
-    .select({ product: products })
+    .select({
+      product: {
+        id: products.id,
+        slug: products.slug,
+        name: products.name,
+        price: products.price,
+        summary: products.summary,
+        imageUrl: products.imageUrl,
+      },
+    })
     .from(favoriteProducts)
     .innerJoin(products, eq(favoriteProducts.productId, products.id))
     .where(eq(favoriteProducts.userId, user.id))
@@ -46,7 +55,7 @@ export default async function FavoritesPage() {
               <div className="p-4">
                 <div className="flex items-start justify-between gap-3">
                   <Link href={`/products/${product.slug}`} className="font-medium hover:text-caramel-deep">{product.name}</Link>
-                  <span className="shrink-0 font-serif text-lg">{formatPrice(product.price)}</span>
+                  <span className="shrink-0 font-serif text-lg">{product.price > 0 ? formatPrice(product.price) : "價格待確認"}</span>
                 </div>
                 <p className="mt-2 line-clamp-2 text-sm text-cocoa-soft">{product.summary}</p>
                 <div className="mt-4 flex items-center gap-2">

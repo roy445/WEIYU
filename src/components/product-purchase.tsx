@@ -29,7 +29,8 @@ export function ProductPurchase({ product, variants }: Props) {
   const variant = useMemo(() => variants.find((item) => item.id === variantId) ?? null, [variants, variantId]);
   const unitPrice = product.price + (variant?.priceDelta ?? 0);
   const available = Math.max(0, variant ? Math.min(product.stock, variant.stock) : product.stock);
-  const soldOut = available <= 0 || !product.isActive;
+  const pricePending = product.price <= 0;
+  const soldOut = available <= 0 || !product.isActive || pricePending;
 
   const handleAdd = () => {
     if (soldOut) {
@@ -59,8 +60,8 @@ export function ProductPurchase({ product, variants }: Props) {
   return (
     <div className="space-y-6">
       <div className="flex items-baseline gap-3">
-        <p className="font-serif text-3xl text-cocoa">{formatPrice(unitPrice)}</p>
-        {variant && variant.priceDelta !== 0 ? (
+        <p className="font-serif text-3xl text-cocoa">{pricePending ? "價格待確認" : formatPrice(unitPrice)}</p>
+        {!pricePending && variant && variant.priceDelta !== 0 ? (
           <p className="text-xs text-cocoa-soft">（含規格差額 {variant.priceDelta > 0 ? "+" : ""}{variant.priceDelta}）</p>
         ) : null}
       </div>
@@ -125,6 +126,8 @@ export function ProductPurchase({ product, variants }: Props) {
           <p className="text-xs text-cocoa-soft">
             {!product.isActive
               ? "此品項目前暫停販售"
+              : pricePending
+                ? "店家尚未確認售價，目前無法訂購"
               : available <= 0
                 ? "目前缺貨，補貨後會重新開放"
                 : available <= 5
@@ -141,7 +144,7 @@ export function ProductPurchase({ product, variants }: Props) {
           disabled={soldOut}
           className={`btn flex-1 ${justAdded ? "btn-dark" : "btn-primary"}`}
         >
-          {soldOut ? "目前無法購買" : justAdded ? "已加入購物袋 ✓" : `加入購物袋 · ${formatPrice(unitPrice * quantity)}`}
+          {pricePending ? "價格確認後開放購買" : soldOut ? "目前無法購買" : justAdded ? "已加入購物袋 ✓" : `加入購物袋 · ${formatPrice(unitPrice * quantity)}`}
         </button>
       </div>
       <p className="text-xs leading-relaxed text-cocoa-soft">

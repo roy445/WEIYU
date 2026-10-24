@@ -19,12 +19,22 @@ export async function GET(request: Request) {
   }
 
   const items = await db
-    .select({ product: products })
+    .select({
+      id: products.id,
+      slug: products.slug,
+      name: products.name,
+      summary: products.summary,
+      price: products.price,
+      stock: products.stock,
+      isActive: products.isActive,
+      imageUrl: products.imageUrl,
+      launchAt: products.launchAt,
+    })
     .from(favoriteProducts)
     .innerJoin(products, eq(favoriteProducts.productId, products.id))
     .where(eq(favoriteProducts.userId, user.id))
     .orderBy(desc(favoriteProducts.createdAt));
-  return ok({ items: items.map(({ product }) => product) });
+  return ok({ items });
 }
 
 export async function POST(request: Request) {

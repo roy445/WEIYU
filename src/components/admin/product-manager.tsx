@@ -20,6 +20,9 @@ export type AdminProduct = {
   isActive: boolean;
   imageUrl: string | null;
   ingredients: string | null;
+  internalRecipe: string | null;
+  launchAt: Date | null;
+  isComingSoon: boolean;
   allergens: string | null;
   storageInfo: string | null;
   shelfLife: string | null;
@@ -42,6 +45,8 @@ type Draft = {
   isActive: boolean;
   imageUrl: string;
   ingredients: string;
+  internalRecipe: string;
+  launchAt: string;
   allergens: string;
   storageInfo: string;
   shelfLife: string;
@@ -60,6 +65,8 @@ const emptyDraft: Draft = {
   isActive: true,
   imageUrl: "",
   ingredients: "",
+  internalRecipe: "",
+  launchAt: "",
   allergens: "",
   storageInfo: "",
   shelfLife: "",
@@ -79,6 +86,8 @@ function toDraft(product: AdminProduct): Draft {
     isActive: product.isActive,
     imageUrl: product.imageUrl ?? "",
     ingredients: product.ingredients ?? "",
+    internalRecipe: product.internalRecipe ?? "",
+    launchAt: product.launchAt ? toDateTimeInput(product.launchAt) : "",
     allergens: product.allergens ?? "",
     storageInfo: product.storageInfo ?? "",
     shelfLife: product.shelfLife ?? "",
@@ -92,11 +101,16 @@ function toDraft(product: AdminProduct): Draft {
   };
 }
 
+function toDateTimeInput(value: Date): string {
+  const localDate = new Date(value.getTime() - value.getTimezoneOffset() * 60_000);
+  return localDate.toISOString().slice(0, 16);
+}
+
 export function ProductManager({ products, categories, initialFilter }: { products: AdminProduct[]; categories: CategoryOption[]; initialFilter?: string }) {
   const router = useRouter();
   const { toast } = useStore();
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"all" | "active" | "inactive" | "out">(initialFilter === "out" ? "out" : "all");
+  const [filter, setFilter] = useState<"all" | "active" | "inactive" | "out" | "upcoming">(initialFilter === "out" ? "out" : "all");
   const [editing, setEditing] = useState<AdminProduct | null | "new">(null);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [error, setError] = useState<string | null>(null);
@@ -111,6 +125,7 @@ export function ProductManager({ products, categories, initialFilter }: { produc
       if (filter === "active" && !product.isActive) return false;
       if (filter === "inactive" && product.isActive) return false;
       if (filter === "out" && product.stock > 0) return false;
+      if (filter === "upcoming" && !product.isComingSoon) return false;
       if (!keyword) return true;
       return (
         product.name.toLowerCase().includes(keyword) ||
@@ -148,6 +163,8 @@ export function ProductManager({ products, categories, initialFilter }: { produc
     isActive: draft.isActive,
     imageUrl: draft.imageUrl,
     ingredients: draft.ingredients,
+    internalRecipe: draft.internalRecipe,
+    launchAt: draft.launchAt ? new Date(draft.launchAt).toISOString() : null,
     allergens: draft.allergens,
     storageInfo: draft.storageInfo,
     shelfLife: draft.shelfLife,
@@ -259,6 +276,7 @@ export function ProductManager({ products, categories, initialFilter }: { produc
               ["active", "上架中"],
               ["inactive", "已下架"],
               ["out", "缺貨"],
+              ["upcoming", "即將上架"],
             ] as const).map(([value, label]) => (
               <button
                 key={value}
@@ -291,11 +309,14 @@ export function ProductManager({ products, categories, initialFilter }: { produc
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-medium text-cocoa">{product.name}</p>
-                  <span className={`badge ${product.isActive ? "bg-[#E4EDE4] text-[#3F5B41]" : "bg-oat text-cocoa"}`}>{product.isActive ? "上架中" : "已下架"}</span>
-                  {product.stock <= 0 ? <span className="badge bg-[#EFE4E1] text-[#8A4B3D]">缺貨</span> : null}
+                  <span className={`badge ${product.isActive ? "bg-[#E4EDE4] text-[#3F5B41]" : "bg-oat text-cocoa"}`}>
+                    {!product.isActive ? "已下架" : product.isComingSoon ? "即將上架" : "上架中"}
+                  </span>
+                  {product.stock <= 0 && !product.isComingSoon ? <span className="badge bg-[#EFE4E1] text-[#8A4B3D]">缺貨</span> : null}
                 </div>
                 <p className="mt-1 text-xs text-cocoa-soft">
                   /{product.slug} · {product.categoryName ?? "未分類"} · {formatPrice(product.price)} · 庫存 {product.stock}
+                  {product.launchAt ? ` · 預計上架 ${new Intl.DateTimeFormat("zh-TW", { timeZone: "Asia/Taipei", month: "numeric", day: "numeric", weekday: "short" }).format(product.launchAt)}` : ""}
                   {product.variants.length > 0 ? ` · ${product.variants.length} 種規格` : ""}
                 </p>
                 <div className="mt-2 flex flex-wrap gap-1.5 text-[0.68rem] text-cocoa-soft">
@@ -397,8 +418,31 @@ export function ProductManager({ products, categories, initialFilter }: { produc
               <input id="p-summary" className="field" maxLength={200} value={draft.summary} onChange={(event) => updateDraft("summary", event.target.value)} />
             </div>
             <div className="sm:col-span-2">
+              <label className="field-label" htmlFor="p-launch-at">預計上架日期與時間（台灣時間）</label>
+              <input
+                id="p-launch-at"
+                type="datetime-local"
+                className="field"
+                value={draft.launchAt}
+                onChange={(event) => updateDraft("launchAt", event.target.value)}
+              />
+              <p className="mt-1 text-xs text-cocoa-soft">上架前會顯示「即將上架」並停止購買；留空則不排程。</p>
+            </div>
+            <div className="sm:col-span-2">
               <label className="field-label" htmlFor="p-desc">詳細介紹</label>
               <textarea id="p-desc" className="field min-h-28" value={draft.description} onChange={(event) => updateDraft("description", event.target.value)} />
+            </div>
+            <div className="sm:col-span-2 rounded-lg border border-caramel/30 bg-oat-soft/40 p-4">
+              <label className="field-label" htmlFor="p-internal-recipe">內部食譜（僅後台可見）</label>
+              <textarea
+                id="p-internal-recipe"
+                className="field min-h-48"
+                maxLength={12000}
+                value={draft.internalRecipe}
+                onChange={(event) => updateDraft("internalRecipe", event.target.value)}
+                placeholder="填寫食材份量、製作步驟與備註；不會顯示在公開商品頁或商品 API。"
+              />
+              <p className="mt-1 text-xs text-cocoa-soft">僅管理員商品編輯頁可讀寫，不會公開給顧客。</p>
             </div>
             <div>
               <label className="field-label" htmlFor="p-ingredients">成分</label>

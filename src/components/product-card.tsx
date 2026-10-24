@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { formatPrice } from "@/lib/brand";
+import { formatLaunchDate, formatPrice } from "@/lib/brand";
 import { recordProductMetric } from "@/lib/product-metrics";
 import { SafeImage } from "./safe-image";
 import { FavoriteButton } from "./favorite-button";
@@ -17,12 +17,15 @@ export type ProductCardData = {
   isActive: boolean;
   imageUrl: string | null;
   categoryName: string | null;
+  launchAt: Date | null;
+  isComingSoon: boolean;
 };
 
 export function ProductCard({ product, index = 0 }: { product: ProductCardData; index?: number }) {
   const { addLine, toast, openCart } = useStore();
   const soldOut = product.stock <= 0;
   const lowStock = product.stock > 0 && product.stock <= 5;
+  const comingSoon = product.isComingSoon;
 
   const handleAdd = () => {
     if (soldOut || !product.isActive) {
@@ -64,7 +67,9 @@ export function ProductCard({ product, index = 0 }: { product: ProductCardData; 
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
         />
         <span className="absolute left-3 top-3 flex gap-2">
-          {!product.isActive ? (
+          {comingSoon ? (
+            <span className="badge bg-caramel text-cream">即將上架</span>
+          ) : !product.isActive ? (
             <span className="badge bg-cocoa/85 text-cream">暫停販售</span>
           ) : soldOut ? (
             <span className="badge bg-cocoa/85 text-cream">缺貨中</span>
@@ -89,18 +94,20 @@ export function ProductCard({ product, index = 0 }: { product: ProductCardData; 
               </Link>
             </h3>
           </div>
-          <p className="shrink-0 font-serif text-base text-cocoa sm:text-lg">{formatPrice(product.price)}</p>
+          <p className="shrink-0 font-serif text-sm text-cocoa sm:text-lg">
+            {comingSoon ? `預計 ${formatLaunchDate(product.launchAt!)}` : product.price > 0 ? formatPrice(product.price) : "價格待確認"}
+          </p>
         </div>
         <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-cocoa-soft sm:text-sm">{product.summary}</p>
         <div className="mt-auto flex items-center gap-2 pt-4">
           <button
             type="button"
             onClick={handleAdd}
-            disabled={soldOut || !product.isActive}
+            disabled={comingSoon || soldOut || !product.isActive}
             className="btn btn-secondary btn-sm min-w-0 flex-1 px-2 text-[0.68rem] sm:px-3 sm:text-xs"
             aria-label={`將 ${product.name} 加入購物袋`}
           >
-            {soldOut ? "補貨中" : !product.isActive ? "暫停販售" : "加入購物袋"}
+            {comingSoon ? "即將上架" : !product.isActive ? "暫停販售" : product.price <= 0 ? "資訊待確認" : soldOut ? "補貨中" : "加入購物袋"}
           </button>
           <Link
             href={`/products/${product.slug}`}

@@ -49,6 +49,9 @@ export async function POST(request: Request) {
 
   const variants = parseVariants(body.variants);
   if (variants === null) return fail("商品規格格式不正確。");
+  const launchAtValue = body.launchAt;
+  const launchAt = launchAtValue == null || launchAtValue === "" ? null : new Date(asString(launchAtValue, 40));
+  if (launchAt && Number.isNaN(launchAt.getTime())) return fail("預計上架時間格式不正確。");
 
   const slug = slugify(asString(body.slug, 80) || name);
   const categoryId = asInt(body.categoryId);
@@ -68,6 +71,8 @@ export async function POST(request: Request) {
           isActive: asBool(body.isActive, true),
           imageUrl: imageUrl || null,
           ingredients: optionalText(body.ingredients, 1000),
+          internalRecipe: optionalText(body.internalRecipe, 12000),
+          launchAt,
           allergens: optionalText(body.allergens, 1000),
           storageInfo: optionalText(body.storageInfo, 1000),
           shelfLife: optionalText(body.shelfLife, 200),

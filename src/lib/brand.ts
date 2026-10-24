@@ -75,6 +75,17 @@ export function formatDate(value: Date | string | null | undefined): string {
   }).format(date);
 }
 
+export function formatLaunchDate(value: Date | string): string {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "時間待確認";
+  return new Intl.DateTimeFormat("zh-TW", {
+    timeZone: "Asia/Taipei",
+    month: "numeric",
+    day: "numeric",
+    weekday: "short",
+  }).format(date);
+}
+
 export function todayInTaipei(): string {
   const now = new Date();
   const parts = new Intl.DateTimeFormat("en-CA", {

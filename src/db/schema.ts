@@ -91,6 +91,8 @@ export const products = pgTable(
     cartAddCount: integer("cart_add_count").notNull().default(0),
     imageUrl: text("image_url"),
     ingredients: text("ingredients"),
+    internalRecipe: text("internal_recipe"),
+    launchAt: timestamp("launch_at", { withTimezone: true }),
     allergens: text("allergens"),
     storageInfo: text("storage_info"),
     shelfLife: text("shelf_life"),
@@ -103,6 +105,25 @@ export const products = pgTable(
     uniqueIndex("products_slug_unique").on(table.slug),
     index("products_category_idx").on(table.categoryId),
     index("products_active_idx").on(table.isActive),
+  ],
+);
+
+export const productLaunchReminders = pgTable(
+  "product_launch_reminders",
+  {
+    id: serial("id").primaryKey(),
+    productId: integer("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    consentAt: timestamp("consent_at", { withTimezone: true }).notNull().defaultNow(),
+    emailSentAt: timestamp("email_sent_at", { withTimezone: true }),
+    emailError: text("email_error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("product_launch_reminders_product_email_unique").on(table.productId, table.email),
+    index("product_launch_reminders_pending_idx").on(table.emailSentAt, table.productId),
   ],
 );
 

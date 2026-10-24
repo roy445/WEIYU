@@ -71,6 +71,16 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       patch.imageUrl = imageUrl || null;
     }
     if ("ingredients" in body) patch.ingredients = optionalText(body.ingredients, 1000);
+    if ("internalRecipe" in body) patch.internalRecipe = optionalText(body.internalRecipe, 12000);
+    if ("launchAt" in body) {
+      if (body.launchAt == null || body.launchAt === "") {
+        patch.launchAt = null;
+      } else {
+        const launchAt = new Date(asString(body.launchAt, 40));
+        if (Number.isNaN(launchAt.getTime())) return fail("預計上架時間格式不正確。");
+        patch.launchAt = launchAt;
+      }
+    }
     if ("allergens" in body) patch.allergens = optionalText(body.allergens, 1000);
     if ("storageInfo" in body) patch.storageInfo = optionalText(body.storageInfo, 1000);
     if ("shelfLife" in body) patch.shelfLife = optionalText(body.shelfLife, 200);

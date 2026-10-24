@@ -32,6 +32,9 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
     storageInfo: product.storageInfo,
     shelfLife: product.shelfLife,
     pickupNote: product.pickupNote,
+    internalRecipe: product.internalRecipe,
+    launchAt: product.launchAt,
+    isComingSoon: product.isComingSoon,
     sortOrder: product.sortOrder,
     variants: variants
       .filter((variant) => variant.productId === product.id)

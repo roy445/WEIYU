@@ -204,6 +204,10 @@ async function runPlaceOrder(userId: number, normalized: NormalizedItem[], meta:
       const product = productMap.get(item.productId);
       if (!product) throw new OrderError("有商品已不存在，請重新整理購物袋。", 409);
       if (!product.isActive) throw new OrderError(`「${product.name}」目前暫停販售，請先移除。`, 409);
+      if (product.launchAt && product.launchAt.getTime() > Date.now()) {
+        throw new OrderError(`「${product.name}」預計 ${new Intl.DateTimeFormat("zh-TW", { timeZone: "Asia/Taipei", month: "numeric", day: "numeric" }).format(product.launchAt)} 上架，目前尚未開放訂購。`, 409);
+      }
+      if (product.price <= 0) throw new OrderError(`「${product.name}」尚未設定售價，目前無法訂購。`, 409);
 
       let unitPrice = product.price;
       let variantName: string | null = null;

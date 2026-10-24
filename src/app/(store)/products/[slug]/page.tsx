@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ProductPurchase } from "@/components/product-purchase";
+import { ProductLaunchReminder } from "@/components/product-launch-reminder";
 import { ProductViewTracker } from "@/components/product-view-tracker";
 import { FavoriteButton } from "@/components/favorite-button";
 import { SafeImage } from "@/components/safe-image";
 import { Reveal } from "@/components/reveal";
 import { getProductBySlug } from "@/lib/products";
+import { formatLaunchDate } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +45,8 @@ export default async function ProductPage({ params }: { params: Params }) {
   const detail = await getProductBySlug(slug);
   if (!detail) notFound();
 
-  const { product, variants, categoryName, categorySlug } = detail;
+  const { product, variants, categoryName, categorySlug, isComingSoon } = detail;
+  const comingSoon = isComingSoon;
 
   return (
     <div className="container-wy py-10 md:py-16">
@@ -73,7 +76,9 @@ export default async function ProductPage({ params }: { params: Params }) {
             sizes="(max-width: 1024px) 92vw, 50vw"
             className="object-cover"
           />
-          {!product.isActive ? (
+          {comingSoon ? (
+            <span className="badge absolute left-4 top-4 bg-caramel text-cream">即將上架</span>
+          ) : !product.isActive ? (
             <span className="badge absolute left-4 top-4 bg-cocoa/85 text-cream">暫停販售</span>
           ) : product.stock <= 0 ? (
             <span className="badge absolute left-4 top-4 bg-cocoa/85 text-cream">缺貨中</span>
@@ -91,23 +96,32 @@ export default async function ProductPage({ params }: { params: Params }) {
             <div className="mb-4 flex justify-end">
               <FavoriteButton productId={product.id} slug={product.slug} />
             </div>
-            <ProductPurchase
-              product={{
-                id: product.id,
-                slug: product.slug,
-                name: product.name,
-                price: product.price,
-                stock: product.stock,
-                isActive: product.isActive,
-                imageUrl: product.imageUrl,
-              }}
-              variants={variants.map((variant) => ({
-                id: variant.id,
-                name: variant.name,
-                priceDelta: variant.priceDelta,
-                stock: variant.stock,
-              }))}
-            />
+            {comingSoon && product.launchAt ? (
+              <div className="space-y-4">
+                <p className="rounded-lg border border-caramel/25 bg-oat-soft/50 px-4 py-3 text-sm text-cocoa">
+                  預計 {formatLaunchDate(product.launchAt)} 上架，現在尚未開放購買。
+                </p>
+                <ProductLaunchReminder slug={product.slug} />
+              </div>
+            ) : (
+              <ProductPurchase
+                product={{
+                  id: product.id,
+                  slug: product.slug,
+                  name: product.name,
+                  price: product.price,
+                  stock: product.stock,
+                  isActive: product.isActive,
+                  imageUrl: product.imageUrl,
+                }}
+                variants={variants.map((variant) => ({
+                  id: variant.id,
+                  name: variant.name,
+                  priceDelta: variant.priceDelta,
+                  stock: variant.stock,
+                }))}
+              />
+            )}
           </div>
 
           {product.description ? (
