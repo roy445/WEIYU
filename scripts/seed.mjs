@@ -54,6 +54,7 @@ const products = [
     galleryImages: [
       "/images/products/weiyu_basque_cheesecake_packaged.webp",
       "/images/products/weiyu_basque_cheesecake_even_slices.webp",
+      "/images/products/basque.jpg",
     ],
     ingredients: "奶油乳酪、鮮奶油、雞蛋、細砂糖、低筋麵粉",
     allergens: "含牛奶、雞蛋、麩質穀物。",
@@ -78,6 +79,7 @@ const products = [
     galleryImages: [
       "/images/products/weiyu_earl_grey_madeleine_packaged.webp",
       "/images/products/weiyu_earl_grey_madeleine_even_arrangement.webp",
+      "/images/products/madeleine.jpg",
     ],
     ingredients: "雞蛋、細砂糖、蜂蜜、低筋麵粉、奶油、伯爵茶葉、泡打粉",
     allergens: "含牛奶、雞蛋、麩質穀物。",
@@ -102,6 +104,7 @@ const products = [
     galleryImages: [
       "/images/products/weiyu_financier_packaged.webp",
       "/images/products/weiyu_financier_even_arrangement.webp",
+      "/images/products/financier.jpg",
     ],
     ingredients: "蛋白、杏仁粉、細砂糖、低筋麵粉、奶油、可可粉、黑巧克力、鹽之花",
     allergens: "含牛奶、雞蛋、堅果（杏仁）、麩質穀物。",
@@ -126,6 +129,7 @@ const products = [
     galleryImages: [
       "/images/products/weiyu_matcha_roll_packaged.webp",
       "/images/products/weiyu_matcha_roll_even_slices.webp",
+      "/images/products/roll-cake.jpg",
     ],
     ingredients: "雞蛋、細砂糖、低筋麵粉、抹茶粉、鮮奶油、牛奶",
     allergens: "含牛奶、雞蛋、麩質穀物。",
@@ -150,6 +154,7 @@ const products = [
     galleryImages: [
       "/images/products/weiyu_honey_lemon_pound_packaged.webp",
       "/images/products/weiyu_honey_lemon_pound_even_slices.webp",
+      "/images/products/pound-cake.jpg",
     ],
     ingredients: "雞蛋、細砂糖、蜂蜜、低筋麵粉、奶油、檸檬、糖粉",
     allergens: "含牛奶、雞蛋、麩質穀物。",
@@ -210,7 +215,16 @@ async function main() {
        values ($1,$2,$3,$4,$5,$6,$7,true,$8,$9::jsonb,$10,$11,$12,$13,$14,$15)
        on conflict (slug) do update set
          name = excluded.name, category_id = excluded.category_id, summary = excluded.summary,
-         description = excluded.description, image_url = excluded.image_url, gallery_images = excluded.gallery_images, ingredients = excluded.ingredients,
+         description = excluded.description, image_url = excluded.image_url,
+         gallery_images = (
+           select jsonb_agg(image order by ordinal)
+           from (
+             select distinct on (image) image, ordinal
+             from jsonb_array_elements(coalesce(products.gallery_images, '[]'::jsonb) || excluded.gallery_images)
+               with ordinality as existing(image, ordinal)
+             order by image, ordinal
+           ) retained
+         ), ingredients = excluded.ingredients,
          allergens = excluded.allergens, storage_info = excluded.storage_info, shelf_life = excluded.shelf_life,
          pickup_note = excluded.pickup_note, updated_at = now()
        returning id`,

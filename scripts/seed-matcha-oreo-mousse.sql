@@ -32,7 +32,11 @@ VALUES (
   '/images/products/weiyu_matcha_oreo_mousse_packaged.webp',
   '[
     "/images/products/weiyu_matcha_oreo_mousse_packaged.webp",
-    "/images/products/weiyu_matcha_oreo_mousse_even_slices.webp"
+    "/images/products/weiyu_matcha_oreo_mousse_even_slices.webp",
+    "/images/products/matcha-oreo-mousse.jpg",
+    "/images/products/matcha-oreo-mousse-whole.png",
+    "/images/products/matcha-oreo-mousse-slice.png",
+    "/images/products/matcha-oreo-mousse-whole-and-slice.png"
   ]'::jsonb,
   'Oreo 餅乾、無鹽奶油、奶油乳酪、砂糖、鮮奶油、抹茶粉、牛奶、吉利丁片、白巧克力。',
   $recipe$抹茶 Oreo 慕斯（6 寸模具）
@@ -86,6 +90,15 @@ ON CONFLICT (slug) DO UPDATE
 SET summary = EXCLUDED.summary,
     description = EXCLUDED.description,
     image_url = EXCLUDED.image_url,
-    gallery_images = EXCLUDED.gallery_images;
+    gallery_images = (
+      SELECT jsonb_agg(image ORDER BY ordinal)
+      FROM (
+        SELECT DISTINCT ON (image) image, ordinal
+        FROM jsonb_array_elements(
+          COALESCE(products.gallery_images, '[]'::jsonb) || EXCLUDED.gallery_images
+        ) WITH ORDINALITY AS existing(image, ordinal)
+        ORDER BY image, ordinal
+      ) AS retained
+    );
 
 COMMIT;
