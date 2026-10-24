@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { productVariants, products } from "@/db/schema";
-import { isSafeImageUrl, optionalText, requireAdmin, slugify } from "@/lib/admin";
+import { isSafeImageUrl, optionalText, parseImageGallery, requireAdmin, slugify } from "@/lib/admin";
 import { asBool, asInt, asString, fail, ok, readJson } from "@/lib/api";
 import { logAdminAction } from "@/lib/orders";
 import { getAllProductsForAdmin } from "@/lib/products";
@@ -41,11 +41,13 @@ export async function POST(request: Request) {
   const price = asInt(body.price);
   const stock = asInt(body.stock, 0);
   const imageUrl = asString(body.imageUrl, 500);
+  const galleryImages = parseImageGallery(body.galleryImages);
 
   if (name.length < 2) return fail("請填寫商品名稱（至少 2 個字）。");
   if (!Number.isFinite(price) || price < 0 || price > 100000) return fail("請填寫有效的商品價格。");
   if (!Number.isFinite(stock) || stock < 0 || stock > 100000) return fail("請填寫有效的庫存數量。");
   if (!isSafeImageUrl(imageUrl)) return fail("圖片網址格式不正確，請使用 / 開頭的本機路徑或 https 網址。");
+  if (galleryImages === null) return fail("商品圖片圖集最多 8 張，且每個網址都必須是安全圖片網址。");
 
   const variants = parseVariants(body.variants);
   if (variants === null) return fail("商品規格格式不正確。");
@@ -70,6 +72,7 @@ export async function POST(request: Request) {
           stock,
           isActive: asBool(body.isActive, true),
           imageUrl: imageUrl || null,
+          galleryImages,
           ingredients: optionalText(body.ingredients, 1000),
           internalRecipe: optionalText(body.internalRecipe, 12000),
           launchAt,

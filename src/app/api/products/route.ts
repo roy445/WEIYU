@@ -18,6 +18,7 @@ export async function GET(request: Request) {
       stock: item.stock,
       isActive: item.isActive,
       imageUrl: item.imageUrl,
+      galleryImages: item.galleryImages,
       launchAt: item.launchAt,
       categoryName: item.categoryName,
       categorySlug: item.categorySlug,

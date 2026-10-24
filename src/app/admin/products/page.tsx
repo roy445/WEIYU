@@ -27,6 +27,7 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
     stock: product.stock,
     isActive: product.isActive,
     imageUrl: product.imageUrl,
+    galleryImages: product.galleryImages,
     ingredients: product.ingredients,
     allergens: product.allergens,
     storageInfo: product.storageInfo,

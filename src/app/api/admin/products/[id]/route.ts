@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { orderItems, productVariants, products } from "@/db/schema";
-import { isSafeImageUrl, optionalText, requireAdmin, slugify } from "@/lib/admin";
+import { isSafeImageUrl, optionalText, parseImageGallery, requireAdmin, slugify } from "@/lib/admin";
 import { asBool, asInt, asString, fail, ok, readJson } from "@/lib/api";
 import { logAdminAction } from "@/lib/orders";
 
@@ -69,6 +69,11 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       const imageUrl = asString(body.imageUrl, 500);
       if (!isSafeImageUrl(imageUrl)) return fail("圖片網址格式不正確。");
       patch.imageUrl = imageUrl || null;
+    }
+    if ("galleryImages" in body) {
+      const galleryImages = parseImageGallery(body.galleryImages);
+      if (galleryImages === null) return fail("商品圖片圖集最多 8 張，且每個網址都必須是安全圖片網址。");
+      patch.galleryImages = galleryImages;
     }
     if ("ingredients" in body) patch.ingredients = optionalText(body.ingredients, 1000);
     if ("internalRecipe" in body) patch.internalRecipe = optionalText(body.internalRecipe, 12000);

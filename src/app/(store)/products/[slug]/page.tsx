@@ -5,7 +5,7 @@ import { ProductPurchase } from "@/components/product-purchase";
 import { ProductLaunchReminder } from "@/components/product-launch-reminder";
 import { ProductViewTracker } from "@/components/product-view-tracker";
 import { FavoriteButton } from "@/components/favorite-button";
-import { SafeImage } from "@/components/safe-image";
+import { ProductImageGallery } from "@/components/product-image-gallery";
 import { Reveal } from "@/components/reveal";
 import { getProductBySlug } from "@/lib/products";
 import { formatLaunchDate } from "@/lib/brand";
@@ -68,22 +68,14 @@ export default async function ProductPage({ params }: { params: Params }) {
       </nav>
 
       <div className="mt-8 grid gap-10 lg:grid-cols-[1.05fr_1fr] lg:gap-16">
-        <div className="relative aspect-[4/3] overflow-hidden rounded-[1.25rem] bg-oat-soft animate-scale-in lg:aspect-[4/5]">
-          <SafeImage
-            src={product.imageUrl}
-            alt={`${product.name} 甜點示意圖片`}
-            priority
-            sizes="(max-width: 1024px) 92vw, 50vw"
-            className="object-cover"
-          />
-          {comingSoon ? (
-            <span className="badge absolute left-4 top-4 bg-caramel text-cream">即將上架</span>
-          ) : !product.isActive ? (
-            <span className="badge absolute left-4 top-4 bg-cocoa/85 text-cream">暫停販售</span>
-          ) : product.stock <= 0 ? (
-            <span className="badge absolute left-4 top-4 bg-cocoa/85 text-cream">缺貨中</span>
-          ) : null}
-        </div>
+        <ProductImageGallery
+          images={product.galleryImages.length > 0 ? product.galleryImages : product.imageUrl ? [product.imageUrl] : []}
+          alt={product.name}
+          badge={
+            comingSoon ? "即將上架" : !product.isActive ? "暫停販售" : product.stock <= 0 ? "缺貨中" : null
+          }
+          badgeTone={comingSoon ? "caramel" : "cocoa"}
+        />
 
         <div>
           <div className="animate-rise" style={{ animationDelay: "120ms" }}>

@@ -10,6 +10,7 @@ INSERT INTO products (
   stock,
   is_active,
   image_url,
+  gallery_images,
   ingredients,
   internal_recipe,
   launch_at,
@@ -28,7 +29,12 @@ VALUES (
   0,
   0,
   true,
-  '/images/products/matcha-oreo-mousse.png',
+  '/images/products/matcha-oreo-mousse-whole-and-slice.png',
+  '[
+    "/images/products/matcha-oreo-mousse-whole.png",
+    "/images/products/matcha-oreo-mousse-slice.png",
+    "/images/products/matcha-oreo-mousse-whole-and-slice.png"
+  ]'::jsonb,
   'Oreo 餅乾、無鹽奶油、奶油乳酪、砂糖、鮮奶油、抹茶粉、牛奶、吉利丁片、白巧克力。',
   $recipe$抹茶 Oreo 慕斯（6 寸模具）
 
@@ -78,6 +84,7 @@ $recipe$,
   0
 )
 ON CONFLICT (slug) DO UPDATE
-SET image_url = EXCLUDED.image_url;
+SET image_url = EXCLUDED.image_url,
+    gallery_images = EXCLUDED.gallery_images;
 
 COMMIT;

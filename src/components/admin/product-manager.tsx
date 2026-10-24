@@ -19,6 +19,7 @@ export type AdminProduct = {
   stock: number;
   isActive: boolean;
   imageUrl: string | null;
+  galleryImages: string[];
   ingredients: string | null;
   internalRecipe: string | null;
   launchAt: Date | null;
@@ -44,6 +45,7 @@ type Draft = {
   stock: string;
   isActive: boolean;
   imageUrl: string;
+  galleryImages: string;
   ingredients: string;
   internalRecipe: string;
   launchAt: string;
@@ -64,6 +66,7 @@ const emptyDraft: Draft = {
   stock: "0",
   isActive: true,
   imageUrl: "",
+  galleryImages: "",
   ingredients: "",
   internalRecipe: "",
   launchAt: "",
@@ -85,6 +88,7 @@ function toDraft(product: AdminProduct): Draft {
     stock: String(product.stock),
     isActive: product.isActive,
     imageUrl: product.imageUrl ?? "",
+    galleryImages: product.galleryImages.join("\n"),
     ingredients: product.ingredients ?? "",
     internalRecipe: product.internalRecipe ?? "",
     launchAt: product.launchAt ? toDateTimeInput(product.launchAt) : "",
@@ -162,6 +166,7 @@ export function ProductManager({ products, categories, initialFilter }: { produc
     stock: Number(draft.stock),
     isActive: draft.isActive,
     imageUrl: draft.imageUrl,
+    galleryImages: draft.galleryImages.split(/\r?\n/).map((imageUrl) => imageUrl.trim()).filter(Boolean),
     ingredients: draft.ingredients,
     internalRecipe: draft.internalRecipe,
     launchAt: draft.launchAt ? new Date(draft.launchAt).toISOString() : null,
@@ -412,6 +417,17 @@ export function ProductManager({ products, categories, initialFilter }: { produc
                   <SafeImage src={draft.imageUrl || null} alt="圖片預覽" sizes="56px" className="object-cover" />
                 </div>
               </div>
+            </div>
+            <div className="sm:col-span-2">
+              <label className="field-label" htmlFor="p-gallery">商品圖片圖集（每行一個圖片網址，最多 8 張）</label>
+              <textarea
+                id="p-gallery"
+                className="field min-h-24"
+                value={draft.galleryImages}
+                onChange={(event) => updateDraft("galleryImages", event.target.value)}
+                placeholder="/images/products/product-photo-1.png&#10;/images/products/product-photo-2.png"
+              />
+              <p className="mt-1 text-xs text-cocoa-soft">商品詳情頁會顯示圖集；商品列表和購物袋仍使用上方的主圖片。</p>
             </div>
             <div className="sm:col-span-2">
               <label className="field-label" htmlFor="p-summary">簡短介紹（卡片顯示）</label>

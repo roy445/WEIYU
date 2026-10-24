@@ -116,7 +116,7 @@ $env:BASE_URL="http://localhost:3000"; $env:ADMIN_EMAIL="you@example.com"; $env:
   - **商品管理**：新增／編輯／上下架／庫存／規格／成分與過敏原，可在商品編輯視窗更新商品圖片。
     - 商品可設定台灣時間的預計上架日，前台會顯示「即將上架」並禁止提前購買；管理員可在「內部食譜」欄位記錄食材份量與製作步驟，該欄位只提供管理 API，不會輸出到公開商品頁或商品 API。
     - 顧客可登記單一商品的 Email 上架提醒。Vercel Cron 每天台灣時間 00:00 檢查已到上架時間且已設定價格、庫存的商品；正式環境需設定 `CRON_SECRET`。
-    - 部署新版前先在 Neon SQL Editor 執行 `scripts/prepare-matcha-oreo-launch.sql` 建立欄位與通知資料表；新版部署完成後再執行 `scripts/seed-matcha-oreo-mousse.sql` 新增預告商品。上架前請在後台填妥售價與庫存。
+    - 部署新版前先在 Neon SQL Editor 執行 `scripts/prepare-matcha-oreo-launch.sql` 建立欄位與通知資料表，以及 `scripts/add-product-gallery-images.sql` 建立商品圖集欄位；新版部署完成後再執行 `scripts/seed-matcha-oreo-mousse.sql` 新增或更新預告商品與圖片。上架前請在後台填妥售價與庫存。
   - **會員帳號**：以姓名或 Email 搜尋帳號並查看訂單數，從會員資料頁連結到訂單清單。
   - **訂單管理**：確認 → 完成取貨；面交收款後再標記「已付款」；取消會恢復庫存（僅一次）。
   - **公告管理**：發布站內公告、選擇同步寄送 Email，查看寄送結果並重試失敗郵件。
