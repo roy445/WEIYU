@@ -187,4 +187,4 @@ Drizzle 設定會從 .env 讀取 DATABASE_URL；正式環境請使用該環境�
 
 部署材料成本、商品配方、30 天趨勢及商品追蹤通知前，請接續執行 `scripts/add-product-cost-tracking.sql`。趨勢歷史從 migration 執行後開始累積，既有 lifetime 瀏覽／加購總數不會被當作 30 天資料。
 
-部署 Email 帳號啟用前，請在目標 PostgreSQL 執行 `scripts/add-email-verification.sql` 再部署新版。既有會員會被要求重新驗證，無法登入前可使用 `/resend-activation` 取得啟用信；不會自動大量寄信。新註冊資料 1 小時未啟用即失效，Vercel Cron 每 15 分鐘清理到期資料，登入／註冊／重寄請求也會觸發清理。
+部署 Email 帳號啟用前，請在目標 PostgreSQL 執行 `scripts/add-email-verification.sql` 再部署新版。既有會員會被要求重新驗證，無法登入前可使用 `/resend-activation` 取得啟用信；不會自動大量寄信。新註冊資料 1 小時後即無法啟用；到期資料會在登入／註冊／重寄請求時清理，並由每日商品上架提醒 Cron 一併清理。Vercel Hobby 僅支援每日排程，因此無背景排程可保證資料在到期的同一小時內物理刪除；正式升級方案可再設定更頻繁的清理排程。

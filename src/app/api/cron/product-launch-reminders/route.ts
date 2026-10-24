@@ -2,6 +2,7 @@ import { and, asc, eq, gt, isNull, lte } from "drizzle-orm";
 import { db } from "@/db";
 import { productLaunchReminders, products } from "@/db/schema";
 import { fail, ok } from "@/lib/api";
+import { deleteExpiredPendingRegistrations } from "@/lib/auth";
 import { sendProductLaunchEmail } from "@/lib/email";
 
 export async function GET(request: Request) {
@@ -9,6 +10,7 @@ export async function GET(request: Request) {
   if (!secret) return fail("排程通知尚未設定 CRON_SECRET。", 503);
   if (request.headers.get("authorization") !== `Bearer ${secret}`) return fail("未授權。", 401);
 
+  const expiredRegistrationsDeleted = await deleteExpiredPendingRegistrations();
   const due = await db
     .select({
       id: productLaunchReminders.id,
@@ -55,5 +57,5 @@ export async function GET(request: Request) {
     }
   }
 
-  return ok({ processed: due.length, sent, failed });
+  return ok({ processed: due.length, sent, failed, expiredRegistrationsDeleted });
 }
