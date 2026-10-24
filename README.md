@@ -162,3 +162,5 @@ LOGO 會出現在：首次進站的開場動畫、**每次切換頁面的品牌�
 | 速率限制 | 目前為單一實例記憶體限流；多實例部署時建議改用 Redis 或平台層限流 |
 
 Drizzle 設定會從 .env 讀取 DATABASE_URL；正式環境請使用該環境的 PostgreSQL 連線字串，不要沿用本機或範例帳密。
+
+可開啟 `/api/health` 檢查資料庫連線與 Cloudinary 頭像上傳設定是否已填入。Cloudinary 顯示 `configured_unverified` 只代表三個環境變數都有值，並不會實際上傳圖片或驗證 API Key 權限；請登入會員後實際上傳頭像確認。
