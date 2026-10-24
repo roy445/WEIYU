@@ -109,6 +109,19 @@ export async function sendPasswordResetEmail(to: string, token: string): Promise
   await sendBrandedEmail(to, "重設唯遇甜所帳號密碼", "重設你的密碼", body);
 }
 
+export async function sendAnnouncementEmail(
+  to: string,
+  title: string,
+  announcementBody: string,
+  announcementId: number,
+): Promise<void> {
+  const { siteUrl } = getEmailConfig();
+  const body = `<p style="font-size:15px;line-height:1.9;color:#6f5545">${escapeHtml(announcementBody).replace(/\n/g, "<br>")}</p>
+<p style="margin:26px 0"><a href="${escapeHtml(`${siteUrl}/account/announcements`)}" style="display:inline-block;border-radius:999px;background:#a8754a;padding:13px 24px;color:#fffaf3;text-decoration:none;font-size:14px">查看站內公告</a></p>
+<p style="font-size:12px;line-height:1.7;color:#6f5545">公告編號：${announcementId}</p>`;
+  await sendBrandedEmail(to, `WEIYU 公告｜${title}`, title, body);
+}
+
 export async function sendOrderEmail(orderId: number, kind: "created" | "status"): Promise<void> {
   const rows = await db
     .select({ order: orders })

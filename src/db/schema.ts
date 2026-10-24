@@ -4,6 +4,7 @@ import {
   index,
   integer,
   pgTable,
+  primaryKey,
   serial,
   text,
   timestamp,
@@ -136,6 +137,41 @@ export const favoriteProducts = pgTable(
   (table) => [
     uniqueIndex("favorite_products_user_product_unique").on(table.userId, table.productId),
     index("favorite_products_user_idx").on(table.userId),
+  ],
+);
+
+export const announcements = pgTable(
+  "announcements",
+  {
+    id: serial("id").primaryKey(),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    type: text("type").notNull().default("info"),
+    sendEmail: boolean("send_email").notNull().default(true),
+    createdBy: integer("created_by").references(() => users.id, { onDelete: "set null" }),
+    publishedAt: timestamp("published_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("announcements_published_idx").on(table.publishedAt)],
+);
+
+export const announcementNotifications = pgTable(
+  "announcement_notifications",
+  {
+    announcementId: integer("announcement_id")
+      .notNull()
+      .references(() => announcements.id, { onDelete: "cascade" }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    emailSentAt: timestamp("email_sent_at", { withTimezone: true }),
+    emailError: text("email_error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.announcementId, table.userId], name: "announcement_notifications_pkey" }),
+    index("announcement_notifications_user_idx").on(table.userId, table.createdAt),
   ],
 );
 

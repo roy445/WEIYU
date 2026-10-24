@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { LogoHorizontal } from "./logo";
 import { MemberAvatar } from "./member-avatar";
+import { NotificationBell } from "./notification-bell";
 import { useStore } from "./store-provider";
 
 type HeaderUser = { name: string; role: "customer" | "admin"; avatarColor: string; avatarUrl: string | null } | null;
@@ -113,6 +114,8 @@ export function SiteHeader({ user }: { user: HeaderUser }) {
               )}
             </div>
 
+            {user ? <NotificationBell /> : null}
+
             <button
               type="button"
               onClick={openCart}
@@ -185,6 +188,7 @@ export function SiteHeader({ user }: { user: HeaderUser }) {
                     {user.name} 的帳號
                   </Link>
                   <Link href="/account" className="block rounded px-2 py-2.5 text-sm text-cocoa hover:bg-oat-soft">會員中心</Link>
+                  <Link href="/account/announcements" className="block rounded px-2 py-2.5 text-sm text-cocoa hover:bg-oat-soft">公告通知</Link>
                   <Link href="/account/favorites" className="block rounded px-2 py-2.5 text-sm text-cocoa hover:bg-oat-soft">我的收藏</Link>
                   {user.role === "admin" ? (
                     <Link
