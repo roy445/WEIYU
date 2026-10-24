@@ -22,12 +22,9 @@ export async function POST(request: Request) {
       const token = await createPasswordResetToken(user.id);
       await sendPasswordResetEmail(user.email, token);
     }
-    return ok({ message: "若此 Email 已註冊，重設密碼連結將寄送到該信箱，請於 30 分鐘內使用。" });
+    return ok({ message: "若此 Email 已註冊，重設密碼連結將寄送到該信箱，連結有效 30 分鐘。" });
   } catch (error) {
     console.error("Password reset email failed", error instanceof Error ? error.message : "unknown");
-    if (error instanceof Error && error.message.includes("SMTP 尚未設定完整")) {
-      return fail("目前尚未完成郵件服務設定，請聯繫店家協助重設密碼。", 503);
-    }
-    return ok({ message: "若此 Email 已註冊且郵件服務正常，重設連結將寄送到該信箱，請於 30 分鐘內使用。" });
+    return fail("目前無法寄送重設密碼信件，請稍後再試或聯繫店家協助。", 503);
   }
 }

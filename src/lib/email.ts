@@ -1,6 +1,6 @@
 import "server-only";
 
-import nodemailer from "nodemailer";
+import nodemailer, { type SendMailOptions } from "nodemailer";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { orderItems, orders } from "@/db/schema";
@@ -31,7 +31,7 @@ function getEmailConfig() {
   return {
     siteUrl,
     from: `"${fromName.replace(/["\\]/g, "")}" <${fromEmail}>`,
-    transport: nodemailer.createTransport({
+    transportOptions: {
       host,
       port,
       secure: process.env.SMTP_SECURE === "true" || port === 465,
@@ -39,8 +39,37 @@ function getEmailConfig() {
       connectionTimeout: 10_000,
       greetingTimeout: 10_000,
       socketTimeout: 30_000,
-    }),
+    },
   };
+}
+
+function isTransientDnsError(error: unknown): boolean {
+  let current: unknown = error;
+  for (let depth = 0; depth < 4 && current && typeof current === "object"; depth += 1) {
+    const candidate = current as { code?: unknown; syscall?: unknown; cause?: unknown };
+    if (candidate.syscall === "getaddrinfo" && (candidate.code === "EBUSY" || candidate.code === "EAI_AGAIN")) {
+      return true;
+    }
+    current = candidate.cause;
+  }
+  return false;
+}
+
+async function sendMailWithRetry(transportOptions: ReturnType<typeof getEmailConfig>["transportOptions"], options: SendMailOptions): Promise<void> {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const transport = nodemailer.createTransport(transportOptions);
+    let retry = false;
+    try {
+      await transport.sendMail(options);
+      return;
+    } catch (error) {
+      if (!isTransientDnsError(error) || attempt === 2) throw error;
+      retry = true;
+    } finally {
+      transport.close();
+    }
+    if (retry) await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+  }
 }
 
 export function assertEmailConfiguration(): void {
@@ -63,7 +92,7 @@ export async function sendBrandedEmail(to: string, subject: string, title: strin
   const logoUrl = settings.logoUrl
     ? new URL(settings.logoUrl, `${config.siteUrl}/`).toString()
     : `${config.siteUrl}/brand/weiyu-logo.svg`;
-  await config.transport.sendMail({
+  await sendMailWithRetry(config.transportOptions, {
     from: config.from,
     to,
     subject,
