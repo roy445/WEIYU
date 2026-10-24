@@ -28,7 +28,7 @@ VALUES (
   0,
   0,
   true,
-  '/images/products/matcha-oreo-mousse.jpg',
+  '/images/products/matcha-oreo-mousse.png',
   'Oreo 餅乾、無鹽奶油、奶油乳酪、砂糖、鮮奶油、抹茶粉、牛奶、吉利丁片、白巧克力。',
   $recipe$抹茶 Oreo 慕斯（6 寸模具）
 
@@ -77,6 +77,7 @@ $recipe$,
   '面交取貨，取貨時付款。',
   0
 )
-ON CONFLICT (slug) DO NOTHING;
+ON CONFLICT (slug) DO UPDATE
+SET image_url = EXCLUDED.image_url;
 
 COMMIT;
