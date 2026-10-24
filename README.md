@@ -145,6 +145,8 @@ $env:BASE_URL="http://localhost:3000"; $env:ADMIN_EMAIL="you@example.com"; $env:
 
 商品圖片可在後台商品管理中新增或更新；會員頭像使用 Cloudinary。
 
+六款甜點的 12 張商品實拍已提供 WebP 圖片版本。部署新版以發布 `public/images/products/` 圖片後，請在目標資料庫執行 `scripts/update-product-galleries.sql`，將六款商品的主圖與兩張商品圖集更新；商品頁可切換圖片，首頁主視覺會自動每 5 秒輪播上架商品。
+
 ## LOGO 顯示位置與使用你的 LOGO 圖檔
 
 LOGO 會出現在：首次進站的開場動畫、**每次切換頁面的品牌過場**（點擊站內連結立即顯示，至少停留 0.6 秒後淡出）、各頁面的載入畫面、導覽列、首頁主視覺印章、登入／註冊／結帳提示卡與頁尾。所有動態效果都尊重 `prefers-reduced-motion`。

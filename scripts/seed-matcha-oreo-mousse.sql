@@ -24,16 +24,15 @@ VALUES (
   'matcha-oreo-mousse',
   '抹茶 Oreo 慕斯',
   (SELECT id FROM categories WHERE slug = 'chilled' LIMIT 1),
-  '濃郁抹茶乳酪慕斯，搭配酥香 Oreo 餅乾底、餅乾碎與抹茶白巧克力淋面，層層口感一次滿足。',
-  '免烤箱製作的抹茶 Oreo 慕斯甜點。濃郁抹茶乳酪、酥香餅乾底與抹茶白巧克力風味交織，適合抹茶控細細品嚐。',
+  '抹茶乳酪的清苦、Oreo 餅乾底的酥香與白巧克力抹茶淋面，做出一層一層的口感變化。',
+  '我們把 Oreo 不只放在底層，也拌入抹茶乳酪慕斯裡，讓每口都有餅乾脆感；上層再以抹茶白巧克力收住風味。濃郁乳酪、茶香微苦、餅乾甜脆交錯，是一款有層次、但不只有甜味的冷藏慕斯。',
   0,
   0,
   true,
-  '/images/products/matcha-oreo-mousse-whole-and-slice.png',
+  '/images/products/weiyu_matcha_oreo_mousse_packaged.webp',
   '[
-    "/images/products/matcha-oreo-mousse-whole.png",
-    "/images/products/matcha-oreo-mousse-slice.png",
-    "/images/products/matcha-oreo-mousse-whole-and-slice.png"
+    "/images/products/weiyu_matcha_oreo_mousse_packaged.webp",
+    "/images/products/weiyu_matcha_oreo_mousse_even_slices.webp"
   ]'::jsonb,
   'Oreo 餅乾、無鹽奶油、奶油乳酪、砂糖、鮮奶油、抹茶粉、牛奶、吉利丁片、白巧克力。',
   $recipe$抹茶 Oreo 慕斯（6 寸模具）
@@ -84,7 +83,9 @@ $recipe$,
   0
 )
 ON CONFLICT (slug) DO UPDATE
-SET image_url = EXCLUDED.image_url,
+SET summary = EXCLUDED.summary,
+    description = EXCLUDED.description,
+    image_url = EXCLUDED.image_url,
     gallery_images = EXCLUDED.gallery_images;
 
 COMMIT;

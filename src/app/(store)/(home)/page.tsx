@@ -52,9 +52,11 @@ export default async function HomePage() {
       .limit(5),
   ]);
   const featuredItems = featured.slice(0, 6);
-  const heroSlides = featured.flatMap((product) =>
-    product.isActive && product.imageUrl
-      ? [{ slug: product.slug, name: product.name, imageUrl: product.imageUrl }]
+  const productsWithGallery = featured.filter((product) => product.galleryImages.length > 1);
+  const carouselProducts = productsWithGallery.length > 0 ? productsWithGallery : featured;
+  const heroSlides = carouselProducts.flatMap((product) =>
+    product.isActive && (product.galleryImages[0] || product.imageUrl)
+      ? [{ slug: product.slug, name: product.name, imageUrl: product.galleryImages[0] || product.imageUrl || "" }]
       : [],
   ).slice(0, 6);
 

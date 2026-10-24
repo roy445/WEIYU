@@ -45,12 +45,16 @@ const products = [
     slug: "basque-cheesecake",
     name: "巴斯克焦香起司蛋糕",
     category: "chilled",
-    summary: "表面焦香、中心濃郁滑順，冷藏後口感更扎實。",
+    summary: "把巴斯克招牌焦香烤色，和冰過後細緻綿密的乳酪中心留在同一口裡。",
     description:
-      "以奶油乳酪與鮮奶油慢速拌勻，高溫烘烤出深褐色焦面，中心保留半熟的柔軟質地。冷藏後切片享用，風味更濃。\n\n【示意圖片說明】本頁照片為品牌示意圖片，實際成品外觀會依當次製作略有不同。",
+      "這款巴斯克不只追求濃郁，而是把表面烤出帶苦甜感的焦香，中心則保留奶油乳酪與鮮奶油交織的柔軟。冰過後先是綿密，接著才慢慢散出乳酪香；讓焦香與滑順形成對比，是我們想留下的巴斯克個性。",
     price: 520,
     stock: 10,
-    imageUrl: "/images/products/basque.jpg",
+    imageUrl: "/images/products/weiyu_basque_cheesecake_packaged.webp",
+    galleryImages: [
+      "/images/products/weiyu_basque_cheesecake_packaged.webp",
+      "/images/products/weiyu_basque_cheesecake_even_slices.webp",
+    ],
     ingredients: "奶油乳酪、鮮奶油、雞蛋、細砂糖、低筋麵粉",
     allergens: "含牛奶、雞蛋、麩質穀物。",
     storageInfo: "冷藏 4°C 保存，離開冷藏請勿超過 1 小時。",
@@ -65,12 +69,16 @@ const products = [
     slug: "earl-grey-madeleine",
     name: "伯爵茶瑪德蓮",
     category: "gift",
-    summary: "伯爵茶葉磨細入麵糊，烤出貝殼造型與茶香尾韻。",
+    summary: "佛手柑香氣遇上蜂蜜柔甜，做成邊緣微酥、茶韻留得住的貝殼小點。",
     description:
-      "將伯爵茶葉細磨後加入蜂蜜麵糊，低溫靜置讓茶香完整釋放。出爐後邊緣微脆、中心柔軟，適合搭配無糖茶飲。\n\n【示意圖片說明】本頁照片為品牌示意圖片，實際成品外觀會依當次製作略有不同。",
+      "我們把伯爵茶的佛手柑香氣和蜂蜜的圓潤甜味放進瑪德蓮，不讓茶味只停在表面；細緻茶香融進柔軟蛋糕體，貝殼邊緣烤得微酥，尾韻帶一點清爽的柑橘調。配無糖茶或黑咖啡，都能吃出它和一般奶油小蛋糕不同的層次。",
     price: 220,
     stock: 24,
-    imageUrl: "/images/products/madeleine.jpg",
+    imageUrl: "/images/products/weiyu_earl_grey_madeleine_packaged.webp",
+    galleryImages: [
+      "/images/products/weiyu_earl_grey_madeleine_packaged.webp",
+      "/images/products/weiyu_earl_grey_madeleine_even_arrangement.webp",
+    ],
     ingredients: "雞蛋、細砂糖、蜂蜜、低筋麵粉、奶油、伯爵茶葉、泡打粉",
     allergens: "含牛奶、雞蛋、麩質穀物。",
     storageInfo: "常溫陰涼處保存，可冷藏延長風味。",
@@ -85,12 +93,16 @@ const products = [
     slug: "sea-salt-financier",
     name: "鹽之花巧克力費南雪",
     category: "gift",
-    summary: "杏仁粉與黑巧克力交織，最後點上一撮鹽之花。",
+    summary: "杏仁與可可的烘焙香，加上黑巧克力的微苦，最後用鹽之花收尾。",
     description:
-      "以焦化奶油與杏仁粉製成，加入可可粉與黑巧克力碎，出爐後撒上鹽之花提味。口感濕潤，甜度收斂。\n\n【示意圖片說明】本頁照片為品牌示意圖片，實際成品外觀會依當次製作略有不同。",
+      "費南雪原有的杏仁香，這次和可可、黑巧克力一起烘出更深的風味；奶油的堅果氣息托住巧克力的微苦，表面再以少量鹽之花提亮。入口先濃、接著帶出微鹹回甘，刻意不做成單純的甜巧克力點心。",
     price: 260,
     stock: 18,
-    imageUrl: "/images/products/financier.jpg",
+    imageUrl: "/images/products/weiyu_financier_packaged.webp",
+    galleryImages: [
+      "/images/products/weiyu_financier_packaged.webp",
+      "/images/products/weiyu_financier_even_arrangement.webp",
+    ],
     ingredients: "蛋白、杏仁粉、細砂糖、低筋麵粉、奶油、可可粉、黑巧克力、鹽之花",
     allergens: "含牛奶、雞蛋、堅果（杏仁）、麩質穀物。",
     storageInfo: "常溫陰涼處保存。",
@@ -105,12 +117,16 @@ const products = [
     slug: "matcha-roll-cake",
     name: "小山園抹茶奶霜捲",
     category: "chilled",
-    summary: "抹茶蛋糕體與清爽奶霜，苦甜平衡的冷藏甜點。",
+    summary: "抹茶蛋糕的微苦包住柔滑奶霜，捲成輕盈、不厚重的冷藏甜點。",
     description:
-      "使用抹茶粉製作蛋糕體，搭配打發鮮奶油捲起。冷藏後切片，蛋糕體更穩定，奶霜也更清爽。\n\n【示意圖片說明】本頁照片為品牌示意圖片，實際成品外觀會依當次製作略有不同。",
+      "把抹茶的清苦留在柔軟蛋糕體裡，再用牛奶與鮮奶油做出輕柔奶霜，捲起來形成茶香與乳香的交錯。冷藏後蛋糕體仍保有濕潤，奶霜入口清爽；不靠厚重甜味，而用抹茶的回韻做主角。",
     price: 480,
     stock: 8,
-    imageUrl: "/images/products/roll-cake.jpg",
+    imageUrl: "/images/products/weiyu_matcha_roll_packaged.webp",
+    galleryImages: [
+      "/images/products/weiyu_matcha_roll_packaged.webp",
+      "/images/products/weiyu_matcha_roll_even_slices.webp",
+    ],
     ingredients: "雞蛋、細砂糖、低筋麵粉、抹茶粉、鮮奶油、牛奶",
     allergens: "含牛奶、雞蛋、麩質穀物。",
     storageInfo: "冷藏 4°C 保存。",
@@ -125,12 +141,16 @@ const products = [
     slug: "honey-lemon-pound-cake",
     name: "蜂蜜檸檬磅蛋糕",
     category: "ambient",
-    summary: "蜂蜜與檸檬糖霜，酸甜清爽的常溫蛋糕。",
+    summary: "蜂蜜蛋糕體揉進檸檬香，再以薄薄糖霜提亮酸甜，清新不膩口。",
     description:
-      "蛋糕體加入蜂蜜與檸檬皮屑，出爐後刷上檸檬糖霜，讓酸甜感更明顯。切片享用或回烤都合適。\n\n【示意圖片說明】本頁照片為品牌示意圖片，實際成品外觀會依當次製作略有不同。",
+      "以蜂蜜替磅蛋糕添上溫和甜香，揉入檸檬皮屑，再用帶酸度的檸檬糖霜收尾。蛋糕本體濕潤厚實，表層則清亮微酸，讓熟悉的磅蛋糕多了輕快的轉折；配茶、當午後點心都合適。",
     price: 280,
     stock: 0,
-    imageUrl: "/images/products/pound-cake.jpg",
+    imageUrl: "/images/products/weiyu_honey_lemon_pound_packaged.webp",
+    galleryImages: [
+      "/images/products/weiyu_honey_lemon_pound_packaged.webp",
+      "/images/products/weiyu_honey_lemon_pound_even_slices.webp",
+    ],
     ingredients: "雞蛋、細砂糖、蜂蜜、低筋麵粉、奶油、檸檬、糖粉",
     allergens: "含牛奶、雞蛋、麩質穀物。",
     storageInfo: "常溫陰涼處保存。",
@@ -185,12 +205,12 @@ async function main() {
     const categoryRow = await client.query("select id from categories where slug = $1", [product.category]);
     const categoryId = categoryRow.rows[0]?.id ?? null;
     const inserted = await client.query(
-      `insert into products (slug, name, category_id, summary, description, price, stock, is_active, image_url,
+      `insert into products (slug, name, category_id, summary, description, price, stock, is_active, image_url, gallery_images,
         ingredients, allergens, storage_info, shelf_life, pickup_note, sort_order)
-       values ($1,$2,$3,$4,$5,$6,$7,true,$8,$9,$10,$11,$12,$13,$14)
+       values ($1,$2,$3,$4,$5,$6,$7,true,$8,$9::jsonb,$10,$11,$12,$13,$14,$15)
        on conflict (slug) do update set
          name = excluded.name, category_id = excluded.category_id, summary = excluded.summary,
-         description = excluded.description, image_url = excluded.image_url, ingredients = excluded.ingredients,
+         description = excluded.description, image_url = excluded.image_url, gallery_images = excluded.gallery_images, ingredients = excluded.ingredients,
          allergens = excluded.allergens, storage_info = excluded.storage_info, shelf_life = excluded.shelf_life,
          pickup_note = excluded.pickup_note, updated_at = now()
        returning id`,
@@ -203,6 +223,7 @@ async function main() {
         product.price,
         product.stock,
         product.imageUrl,
+        JSON.stringify(product.galleryImages ?? [product.imageUrl]),
         product.ingredients,
         product.allergens,
         product.storageInfo,

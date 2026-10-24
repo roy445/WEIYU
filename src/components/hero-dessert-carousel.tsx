@@ -8,7 +8,6 @@ export type HeroDessertSlide = { slug: string; name: string; imageUrl: string };
 
 export function HeroDessertCarousel({ slides }: { slides: HeroDessertSlide[] }) {
   const [activeIndex, setActiveIndex] = useState(0);
-  const [paused, setPaused] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(true);
   const active = slides[activeIndex];
 
@@ -21,23 +20,19 @@ export function HeroDessertCarousel({ slides }: { slides: HeroDessertSlide[] }) 
   }, []);
 
   useEffect(() => {
-    if (slides.length < 2 || paused || reducedMotion) return;
-    const timer = window.setInterval(() => setActiveIndex((index) => (index + 1) % slides.length), 5000);
+    if (slides.length < 2 || reducedMotion) return;
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        setActiveIndex((index) => (index + 1) % slides.length);
+      }
+    }, 5000);
     return () => window.clearInterval(timer);
-  }, [paused, reducedMotion, slides.length]);
+  }, [reducedMotion, slides.length]);
 
   if (!active) return null;
 
   return (
-    <div
-      className="relative aspect-[4/5] overflow-hidden rounded-[1.25rem] bg-oat-soft"
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-      onFocus={() => setPaused(true)}
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) setPaused(false);
-      }}
-    >
+    <div className="relative aspect-[4/5] overflow-hidden rounded-[1.25rem] bg-oat-soft">
       <Link href={`/products/${active.slug}`} className="absolute inset-0" aria-label={`查看${active.name}商品頁`}>
         <SafeImage
           key={active.imageUrl}
@@ -65,14 +60,6 @@ export function HeroDessertCarousel({ slides }: { slides: HeroDessertSlide[] }) 
               className={`h-2.5 rounded-full transition-[width,background-color] duration-200 ${index === activeIndex ? "w-6 bg-cream" : "w-2.5 bg-cream/60 hover:bg-cream"}`}
             />
           ))}
-          <button
-            type="button"
-            onClick={() => setPaused((value) => !value)}
-            aria-label={paused ? "繼續自動輪播" : "暫停自動輪播"}
-            className="ml-1 text-[0.65rem] text-cream underline underline-offset-2"
-          >
-            {paused ? "播放" : "暫停"}
-          </button>
         </div>
       ) : null}
     </div>

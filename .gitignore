@@ -24,3 +24,6 @@ Thumbs.db
 
 # local database volumes
 pgdata/
+
+# Original product photo uploads; optimized WebP versions are deployed
+public/images/products/weiyu_*.png
