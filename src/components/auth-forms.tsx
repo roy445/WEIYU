@@ -116,6 +116,8 @@ export function RegisterForm({ next }: { next?: string }) {
   const router = useRouter();
   const { toast } = useStore();
   const [form, setForm] = useState({ name: "", email: "", password: "", passwordConfirm: "" });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [privacyAcknowledged, setPrivacyAcknowledged] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -172,12 +174,54 @@ export function RegisterForm({ next }: { next?: string }) {
       </div>
       <div>
         <label htmlFor="reg-password" className="field-label">密碼</label>
-        <input id="reg-password" type="password" className="field" autoComplete="new-password" required minLength={8} {...bind("password")} />
+        <div className="relative">
+          <input id="reg-password" type={showPassword ? "text" : "password"} className="field pr-12" autoComplete="new-password" required minLength={8} {...bind("password")} />
+          <button
+            type="button"
+            className="absolute inset-y-0 right-0 flex items-center px-4 text-cocoa-soft transition-colors hover:text-caramel-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-caramel"
+            onClick={() => setShowPassword((visible) => !visible)}
+            aria-label={showPassword ? "隱藏密碼" : "顯示密碼"}
+            aria-pressed={showPassword}
+          >
+            {showPassword ? (
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor" strokeWidth="1.7">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18M10.6 10.6a2 2 0 002.8 2.8" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.9 5.2A10.8 10.8 0 0112 5c5.2 0 8.6 4.2 9.5 6-.4.8-1.3 2.1-2.7 3.3M6.2 6.2C4.2 7.5 2.9 9.5 2.5 11c.9 1.8 4.3 6 9.5 6 1 0 2-.2 2.8-.5" />
+              </svg>
+            ) : (
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor" strokeWidth="1.7">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.5 12s3.4-7 9.5-7 9.5 7 9.5 7-3.4 7-9.5 7-9.5-7-9.5-7Z" />
+                <circle cx="12" cy="12" r="2.5" />
+              </svg>
+            )}
+          </button>
+        </div>
         <p className="mt-1.5 text-xs text-cocoa-soft">至少 8 個字元，需包含英文字母與數字。</p>
       </div>
       <div>
         <label htmlFor="reg-password-confirm" className="field-label">確認密碼</label>
-        <input id="reg-password-confirm" type="password" className="field" autoComplete="new-password" required {...bind("passwordConfirm")} />
+        <div className="relative">
+          <input id="reg-password-confirm" type={showPasswordConfirm ? "text" : "password"} className="field pr-12" autoComplete="new-password" required {...bind("passwordConfirm")} />
+          <button
+            type="button"
+            className="absolute inset-y-0 right-0 flex items-center px-4 text-cocoa-soft transition-colors hover:text-caramel-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-caramel"
+            onClick={() => setShowPasswordConfirm((visible) => !visible)}
+            aria-label={showPasswordConfirm ? "隱藏確認密碼" : "顯示確認密碼"}
+            aria-pressed={showPasswordConfirm}
+          >
+            {showPasswordConfirm ? (
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor" strokeWidth="1.7">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18M10.6 10.6a2 2 0 002.8 2.8" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.9 5.2A10.8 10.8 0 0112 5c5.2 0 8.6 4.2 9.5 6-.4.8-1.3 2.1-2.7 3.3M6.2 6.2C4.2 7.5 2.9 9.5 2.5 11c.9 1.8 4.3 6 9.5 6 1 0 2-.2 2.8-.5" />
+              </svg>
+            ) : (
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor" strokeWidth="1.7">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.5 12s3.4-7 9.5-7 9.5 7 9.5 7-3.4 7-9.5 7-9.5-7-9.5-7Z" />
+                <circle cx="12" cy="12" r="2.5" />
+              </svg>
+            )}
+          </button>
+        </div>
       </div>
       <fieldset className="space-y-3 rounded-lg border border-mist/70 bg-cream/50 p-4">
         <legend className="px-1 text-xs tracking-[0.12em] text-cocoa-soft">註冊前請確認</legend>

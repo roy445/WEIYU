@@ -40,13 +40,28 @@ export default async function OrderDetailPage({ params, searchParams }: Props) {
   return (
     <div className="container-wy py-12 md:py-16">
       {placed === "1" ? (
-        <div className="mb-8 rounded-lg border border-[#C9D6C6] bg-[#F2F7F0] px-6 py-5 text-sm text-[#3F5B41] animate-rise">
-          <p className="font-serif text-xl">訂單已送出，謝謝你。</p>
-          <p className="mt-1">目前狀態為「待店家確認」。我確認後會更新狀態，並於約定時段面交取貨、當面付款。</p>
-        </div>
+        <section aria-labelledby="order-thanks" className="mb-10 overflow-hidden rounded-2xl border border-[#C9D6C6] bg-[#F2F7F0] p-6 text-[#3F5B41] animate-rise sm:p-9">
+          <div className="mx-auto max-w-2xl text-center">
+            <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-white/80">
+              <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" aria-hidden="true">
+                <path d="m5 12 4.5 4.5L19 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+            <p className="eyebrow mt-5">Thank you for your order</p>
+            <h1 id="order-thanks" className="mt-2 font-serif text-3xl sm:text-4xl">謝謝你的訂購！</h1>
+            <p className="mt-3 text-sm leading-relaxed">
+              訂單 <strong>{order.orderNo}</strong> 已成功送出，目前等待店家確認。確認後會更新訂單狀態，並依你預約的時間面交取貨、當面付款。
+            </p>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <a href="#order-details" className="btn btn-primary btn-sm">查看訂單明細</a>
+              <Link href="/products" className="btn btn-secondary btn-sm">繼續逛甜點</Link>
+            </div>
+            <p className="mt-4 text-xs leading-relaxed">你也可以隨時從會員中心查看訂單進度。</p>
+          </div>
+        </section>
       ) : null}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between animate-rise">
+      <div id="order-details" className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between animate-rise">
         <div>
           <Link href="/account" className="text-xs tracking-[0.1em] text-cocoa-soft hover:text-caramel-deep">
             ← 回會員中心
