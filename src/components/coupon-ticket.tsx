@@ -15,7 +15,7 @@ export function CouponTicket({ coupon }: { coupon: CouponDisplay }) {
   const benefit = coupon.type === "percent"
     ? `${coupon.value}% OFF`
     : coupon.type === "points"
-      ? `${coupon.value} 點`
+      ? `${coupon.value} 甜甜數`
       : `折抵 ${formatPrice(coupon.value)}`;
 
   return (

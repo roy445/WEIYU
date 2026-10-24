@@ -114,7 +114,7 @@ export function SiteHeader({ user }: { user: HeaderUser }) {
                 <Link
                   href="/account/coupons"
                   className="flex items-center gap-1.5 rounded-full border border-caramel/40 px-2.5 py-2 text-xs text-caramel-deep transition-colors hover:bg-oat-soft"
-                  aria-label={`目前有 ${user.points} 點，前往點數與優惠券中心`}
+                  aria-label={`目前有 ${user.points} 點甜甜數，前往甜甜數與優惠券中心`}
                 >
                   <svg viewBox="0 0 32 32" className="h-5 w-5" fill="none" aria-hidden="true">
                     <path d="M5 22c0-3 3-5 7-5h9c4 0 6 2 6 5v2H5v-2Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />

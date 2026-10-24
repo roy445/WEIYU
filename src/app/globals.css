@@ -99,9 +99,11 @@
       width: 100% !important;
       max-width: none !important;
       margin: 0 !important;
-      padding: 20px !important;
+      padding: 6mm !important;
       color: #211a14 !important;
       background: #fff !important;
+      font-size: 8.5pt !important;
+      line-height: 1.25 !important;
     }
 
     .print-hidden {
@@ -118,13 +120,84 @@
       box-shadow: none !important;
     }
 
+    .printable-order .grid {
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr) !important;
+      gap: 8px !important;
+    }
+
+    .printable-order .surface {
+      padding: 8px !important;
+      break-inside: avoid;
+    }
+
+    .printable-order h1 {
+      margin-top: 0 !important;
+      font-size: 16pt !important;
+      line-height: 1.15 !important;
+    }
+
+    .printable-order h2 {
+      font-size: 11pt !important;
+      line-height: 1.2 !important;
+    }
+
+    .printable-order p,
+    .printable-order dt,
+    .printable-order dd,
+    .printable-order li {
+      font-size: 8.5pt !important;
+      line-height: 1.25 !important;
+    }
+
+    .printable-order .print-order-image {
+      display: none !important;
+    }
+
+    .printable-order li {
+      padding-block: 3px !important;
+      break-inside: avoid;
+    }
+
+    .printable-order .mt-10,
+    .printable-order .mt-8 {
+      margin-top: 8px !important;
+    }
+
+    .printable-order .mt-6,
+    .printable-order .mt-5,
+    .printable-order .mt-4 {
+      margin-top: 6px !important;
+    }
+
+    .printable-order .mt-3,
+    .printable-order .mt-2,
+    .printable-order .mt-1 {
+      margin-top: 3px !important;
+    }
+
+    .printable-order .space-y-8 > :not([hidden]) ~ :not([hidden]) {
+      margin-top: 8px !important;
+    }
+
+    .printable-order .space-y-4 > :not([hidden]) ~ :not([hidden]),
+    .printable-order .space-y-3 > :not([hidden]) ~ :not([hidden]),
+    .printable-order .space-y-2 > :not([hidden]) ~ :not([hidden]) {
+      margin-top: 4px !important;
+    }
+
+    .printable-order .py-4,
+    .printable-order .py-3 {
+      padding-block: 4px !important;
+    }
+
     a {
       color: inherit !important;
       text-decoration: none !important;
     }
 
     @page {
-      margin: 12mm;
+      size: auto;
+      margin: 7mm;
     }
   }
 

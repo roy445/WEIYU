@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ImageMagnifier } from "@/components/image-magnifier";
 import { SafeImage } from "@/components/safe-image";
 
 export function ProductImageGallery({
@@ -20,7 +21,7 @@ export function ProductImageGallery({
   return (
     <div className="space-y-3 animate-scale-in">
       <div className="relative aspect-[4/3] overflow-hidden rounded-[1.25rem] bg-oat-soft lg:aspect-[4/5]">
-        <SafeImage
+        <ImageMagnifier
           src={selectedImage}
           alt={`${alt} 商品圖片 ${selectedIndex + 1}`}
           priority

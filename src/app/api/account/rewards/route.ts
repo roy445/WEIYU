@@ -84,7 +84,7 @@ export async function POST(request: Request) {
           createdAt: now,
           expiresAt: addThreeMonths(now),
         });
-        return { message: `已獲得 ${coupon.value} 點，點數有效期限為 3 個月。` };
+        return { message: `已獲得 ${coupon.value} 點甜甜數，有效期限為 3 個月。` };
       }
 
       return { message: "優惠券已加入你的優惠券中心。" };

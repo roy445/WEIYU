@@ -164,12 +164,12 @@ export async function sendOrderEmail(orderId: number, kind: "created" | "status"
   const rewardLines = [
     `<p style="margin:0 0 6px"><strong>商品小計：</strong>${formatPrice(order.subtotal)}</p>`,
     order.couponDiscount > 0 ? `<p style="margin:0 0 6px"><strong>優惠券${order.couponTitle ? `（${escapeHtml(order.couponTitle)}）` : ""}：</strong>−${formatPrice(order.couponDiscount)}</p>` : "",
-    order.pointsUsed > 0 ? `<p style="margin:0 0 6px"><strong>點數折抵（${order.pointsUsed} 點）：</strong>−${formatPrice(order.pointsUsed)}</p>` : "",
+    order.pointsUsed > 0 ? `<p style="margin:0 0 6px"><strong>甜甜數折抵（${order.pointsUsed} 點）：</strong>−${formatPrice(order.pointsUsed)}</p>` : "",
   ].join("");
   const body = `<p style="font-size:15px;line-height:1.8;color:#6f5545">${intro}</p>
 <div style="border-radius:10px;background:#f5eee2;padding:16px"><p style="margin:0 0 8px"><strong>訂單編號：</strong>${escapeHtml(order.orderNo)}</p><p style="margin:0 0 8px"><strong>訂單狀態：</strong>${escapeHtml(statusLabel)}</p><p style="margin:0 0 8px"><strong>付款狀態：</strong>${escapeHtml(paymentLabel)}</p><p style="margin:0"><strong>面交：</strong>${escapeHtml(order.pickupDate)} ${escapeHtml(order.pickupTime)} · ${escapeHtml(order.pickupLocationName)}</p></div>
 <ul style="padding:8px 0 8px 20px;line-height:1.6">${itemList}</ul>
-<div style="margin:16px 0;border-top:1px solid #e7d8c3;padding-top:12px;color:#543b2b">${rewardLines}<p style="margin:8px 0 0;font-size:14px"><strong>合計：${formatPrice(order.total)}</strong></p>${order.status === "completed" && order.pointsEarned > 0 ? `<p style="margin:8px 0 0;font-size:13px"><strong>本筆回饋點數：${order.pointsEarned} 點</strong></p>` : ""}</div>
+<div style="margin:16px 0;border-top:1px solid #e7d8c3;padding-top:12px;color:#543b2b">${rewardLines}<p style="margin:8px 0 0;font-size:14px"><strong>合計：${formatPrice(order.total)}</strong></p>${order.status === "completed" && order.pointsEarned > 0 ? `<p style="margin:8px 0 0;font-size:13px"><strong>本筆回饋甜甜數：${order.pointsEarned} 點</strong></p>` : ""}</div>
 ${order.adminNote?.trim() ? `<div style="margin:20px 0;border-left:3px solid #a8754a;background:#f5eee2;padding:12px 16px;color:#543b2b"><strong>店家備註</strong><p style="margin:6px 0 0;white-space:pre-line;line-height:1.7">${escapeHtml(order.adminNote.trim())}</p></div>` : ""}
 <p style="font-size:12px;color:#6f5545"><a href="${escapeHtml(`${process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "")}/account/orders/${order.id}`)}" style="color:#8a5c36">查看訂單詳情</a></p>`;
   await sendBrandedEmail(order.contactEmail, `訂單 ${order.orderNo}｜${title}`, title, body);

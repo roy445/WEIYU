@@ -401,7 +401,7 @@ export function CheckoutForm({ user, slots, acceptingOrders }: Props) {
               {rewardError ? <p role="alert" className="mt-1 text-xs text-[#8A4B3D]">{rewardError}</p> : null}
             </div>
             <div className="mt-4">
-              <label htmlFor="checkout-points" className="field-label">使用點數（目前 {pointsBalance} 點，1 點折 NT$1）</label>
+              <label htmlFor="checkout-points" className="field-label">使用甜甜數（目前 {pointsBalance} 點，每點折 NT$1）</label>
               <input
                 id="checkout-points"
                 className="field"
@@ -412,7 +412,7 @@ export function CheckoutForm({ user, slots, acceptingOrders }: Props) {
                 value={appliedPoints}
                 onChange={(event) => setPointsToUse(Math.max(0, Math.trunc(Number(event.target.value) || 0)))}
               />
-              <p className="mt-1 text-xs text-cocoa-soft">可與一張優惠券併用，點數折抵不超過折價後的商品小計。</p>
+              <p className="mt-1 text-xs text-cocoa-soft">可與一張優惠券併用，甜甜數折抵不超過折價後的商品小計。</p>
             </div>
             {couponDiscount > 0 ? (
               <div className="flex justify-between text-sm">
@@ -422,7 +422,7 @@ export function CheckoutForm({ user, slots, acceptingOrders }: Props) {
             ) : null}
             {appliedPoints > 0 ? (
               <div className="flex justify-between text-sm">
-                <dt className="text-cocoa-soft">點數折抵</dt>
+                <dt className="text-cocoa-soft">甜甜數折抵</dt>
                 <dd>−{formatPrice(appliedPoints)}</dd>
               </div>
             ) : null}
@@ -435,7 +435,7 @@ export function CheckoutForm({ user, slots, acceptingOrders }: Props) {
               <dd className="font-serif text-2xl text-cocoa">{formatPrice(estimatedTotal)}</dd>
             </div>
           </dl>
-          <p className="mt-2 text-xs text-cocoa-soft">總金額由伺服器依目前商品價格、優惠券與可用點數重新計算。訂單完成後依實付商品金額每滿 NT$50 回饋 1 點，不足 50 元無條件捨去。</p>
+          <p className="mt-2 text-xs text-cocoa-soft">總金額由伺服器依目前商品價格、優惠券與可用甜甜數重新計算。訂單完成後依實付商品金額每滿 NT$50 回饋 1 點甜甜數，不足 50 元無條件捨去。</p>
 
           <div className="mt-5 rounded-lg bg-cream-deep/80 px-4 py-3 text-xs leading-relaxed text-cocoa-soft">
             <p className="text-cocoa">

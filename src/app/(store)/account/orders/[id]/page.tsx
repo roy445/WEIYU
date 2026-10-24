@@ -88,7 +88,7 @@ export default async function OrderDetailPage({ params, searchParams }: Props) {
       </div>
 
       {order.status !== "cancelled" ? (
-        <ol className="mt-8 grid gap-2 sm:grid-cols-3">
+        <ol className="print-hidden mt-8 grid gap-2 sm:grid-cols-3">
           {timeline.map((step, index) => {
             const reached = index <= currentIndex;
             return (
@@ -115,7 +115,7 @@ export default async function OrderDetailPage({ params, searchParams }: Props) {
           <ul className="mt-4 divide-y divide-mist/60 border-y border-mist/60">
             {items.map((item) => (
               <li key={item.id} className="flex items-center gap-4 py-4">
-                <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded bg-oat-soft">
+                <div className="print-order-image relative h-16 w-16 shrink-0 overflow-hidden rounded bg-oat-soft">
                   <SafeImage src={item.imageUrl} alt={`${item.productName} 示意圖`} sizes="64px" className="object-cover" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -136,8 +136,8 @@ export default async function OrderDetailPage({ params, searchParams }: Props) {
           <dl className="mt-3 space-y-1 border-t border-mist/60 pt-3 text-sm">
             <div className="flex justify-between"><dt className="text-cocoa-soft">商品小計</dt><dd>{formatPrice(order.subtotal)}</dd></div>
             {order.couponDiscount > 0 ? <div className="flex justify-between"><dt className="text-cocoa-soft">優惠券{order.couponTitle ? `（${order.couponTitle}）` : ""}</dt><dd>−{formatPrice(order.couponDiscount)}</dd></div> : null}
-            {order.pointsUsed > 0 ? <div className="flex justify-between"><dt className="text-cocoa-soft">點數折抵（{order.pointsUsed} 點）</dt><dd>−{formatPrice(order.pointsUsed)}</dd></div> : null}
-            {order.status === "completed" && order.pointsEarned > 0 ? <div className="flex justify-between"><dt className="text-cocoa-soft">本筆回饋點數</dt><dd>{order.pointsEarned} 點</dd></div> : null}
+            {order.pointsUsed > 0 ? <div className="flex justify-between"><dt className="text-cocoa-soft">甜甜數折抵（{order.pointsUsed} 點）</dt><dd>−{formatPrice(order.pointsUsed)}</dd></div> : null}
+            {order.status === "completed" && order.pointsEarned > 0 ? <div className="flex justify-between"><dt className="text-cocoa-soft">本筆回饋甜甜數</dt><dd>{order.pointsEarned} 點</dd></div> : null}
           </dl>
           {order.customerNote ? (
             <div className="mt-6 rounded-lg bg-cream-deep/70 px-5 py-4 text-sm">
@@ -173,7 +173,7 @@ export default async function OrderDetailPage({ params, searchParams }: Props) {
               <div><dt className="text-xs text-cocoa-soft">電子郵件</dt><dd>{order.contactEmail}</dd></div>
             </dl>
           </div>
-          <p className="text-xs leading-relaxed text-cocoa-soft">如需修改或取消訂單，請透過頁尾聯絡方式直接與我聯繫。</p>
+          <p className="print-hidden text-xs leading-relaxed text-cocoa-soft">如需修改或取消訂單，請透過頁尾聯絡方式直接與我聯繫。</p>
         </aside>
       </div>
     </div>

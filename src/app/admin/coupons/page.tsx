@@ -9,7 +9,7 @@ export default function AdminCouponsPage() {
       <header>
         <p className="eyebrow">Rewards</p>
         <h1 className="mt-3 text-3xl">優惠券管理</h1>
-        <p className="mt-2 text-sm text-cocoa-soft">建立折價券、百分比券或點數券，設定領取期限、最低消費與可領取數量。</p>
+        <p className="mt-2 text-sm text-cocoa-soft">建立折價券、百分比券或甜甜數券，設定到期日、最低消費與可領取數量。</p>
       </header>
       <CouponManager />
     </div>

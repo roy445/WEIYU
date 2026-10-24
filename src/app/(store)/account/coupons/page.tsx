@@ -8,7 +8,7 @@ import { coupons, userCoupons } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { getPointsSummary } from "@/lib/rewards";
 
-export const metadata: Metadata = { title: "點數與優惠券" };
+export const metadata: Metadata = { title: "甜甜數與優惠券" };
 export const dynamic = "force-dynamic";
 
 export default async function CouponsPage() {
@@ -43,7 +43,7 @@ export default async function CouponsPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="eyebrow">Sweet rewards</p>
-          <h1 className="mt-3 text-4xl">點數與優惠券</h1>
+          <h1 className="mt-3 text-4xl">甜甜數與優惠券</h1>
           <p className="mt-2 text-sm text-cocoa-soft">消費每滿 NT$50 獲得 1 點，未滿 50 元的部分無條件捨去；例如消費 NT$149 可得 2 點。每點折抵 NT$1。</p>
         </div>
         <Link href="/account" className="btn btn-secondary btn-sm">回會員中心</Link>

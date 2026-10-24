@@ -110,16 +110,16 @@ export function CouponManager() {
         <label className="block">
           <span className="field-label">優惠類型</span>
           <select className="field" value={type} onChange={(event) => setType(event.target.value as CouponRow["type"])}>
-            <option value="fixed">折價金額（元）</option><option value="percent">百分比折扣（%）</option><option value="points">點數（點）</option>
+            <option value="fixed">折價金額（元）</option><option value="percent">百分比折扣（%）</option><option value="points">甜甜數</option>
           </select>
         </label>
-        <label className="block"><span className="field-label">{type === "fixed" ? "折抵金額（元）" : type === "percent" ? "折扣百分比（1–100）" : "贈送點數"}</span><input name="value" className="field" type="number" min="1" max={type === "percent" ? 100 : 1000000} step="1" required /></label>
+        <label className="block"><span className="field-label">{type === "fixed" ? "折抵金額（元）" : type === "percent" ? "折扣百分比（1–100）" : "贈送甜甜數"}</span><input name="value" className="field" type="number" min="1" max={type === "percent" ? 100 : 1000000} step="1" required /></label>
         {type !== "points" ? <label className="block"><span className="field-label">最低消費金額（元）</span><input name="minimumSubtotal" className="field" type="number" min="0" step="1" defaultValue="0" /></label> : null}
         <label className="block"><span className="field-label">優惠券到期時間（由店家設定）</span><input className="field" type="datetime-local" value={expiry} onChange={(event) => setExpiry(event.target.value)} required /></label>
         <label className="block"><span className="field-label">可領取總數（留空不限量）</span><input name="maxRedemptions" className="field" type="number" min="1" step="1" placeholder="不限量" /></label>
         {error ? <p role="alert" className="text-sm text-[#8A4B3D]">{error}</p> : null}
         <button type="submit" className="btn btn-primary w-full" disabled={pending}>{pending ? "建立中…" : "建立優惠券"}</button>
-        <p className="text-xs leading-relaxed text-cocoa-soft">百分比折扣依訂單小計計算，折扣金額無條件捨去至整數元。顧客每筆訂單可使用一張優惠券，並可另外使用點數。</p>
+        <p className="text-xs leading-relaxed text-cocoa-soft">百分比折扣依訂單小計計算，折扣金額無條件捨去至整數元。顧客每筆訂單可使用一張優惠券，並可另外使用甜甜數。</p>
       </form>
 
       <section>

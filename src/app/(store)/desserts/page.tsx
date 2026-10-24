@@ -1,27 +1,15 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { asc, inArray } from "drizzle-orm";
-import { db } from "@/db";
-import { productVariants, type ProductVariant } from "@/db/schema";
-import { AddToBagButton } from "@/components/add-to-bag-button";
+import { FavoriteButton } from "@/components/favorite-button";
+import { ImageMagnifier } from "@/components/image-magnifier";
 import { Reveal } from "@/components/reveal";
-import { SafeImage } from "@/components/safe-image";
-import { formatPrice } from "@/lib/brand";
-import { listCategories, listProducts, type ProductListItem } from "@/lib/products";
+import { listCategories, listProducts } from "@/lib/products";
 
 export const metadata: Metadata = {
   title: "甜點介紹",
-  description: "唯遇甜所每一款手作甜點的介紹、規格、成分、過敏原與保存方式，方便你在下單前慢慢看。",
+  description: "認識唯遇甜所的手作甜點、風味故事、成分與保存方式。",
 };
 
 export const dynamic = "force-dynamic";
-
-function priceRange(price: number, variants: ProductVariant[]): string {
-  const prices = [price, ...variants.map((variant) => price + variant.priceDelta)];
-  const min = Math.min(...prices);
-  const max = Math.max(...prices);
-  return min === max ? formatPrice(min) : `${formatPrice(min)} – ${formatPrice(max)}`;
-}
 
 function Info({ label, value }: { label: string; value: string | null }) {
   return (
@@ -34,33 +22,35 @@ function Info({ label, value }: { label: string; value: string | null }) {
 
 function DessertFeature({
   product,
-  variants,
   categoryName,
   index,
 }: {
-  product: ProductListItem;
-  variants: ProductVariant[];
+  product: Awaited<ReturnType<typeof listProducts>>[number];
   categoryName: string;
   index: number;
 }) {
   const reverse = index % 2 === 1;
-  const activeVariants = variants.filter((variant) => variant.isActive);
   const paragraphs = product.description
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => line && !line.startsWith("【示意圖片說明】"));
-  const soldOut = product.stock <= 0;
+  const ingredientNotes = [
+    /奶油|butter/i.test(product.ingredients ?? "")
+      ? "選用總統牌奶油，讓奶香乾淨、柔和地融入甜點，口感細緻而不厚重。"
+      : null,
+    /抹茶|matcha/i.test(`${product.name} ${product.ingredients ?? ""}`)
+      ? "抹茶品項選用靜岡抹茶粉，呈現清雅茶香與恰到好處的回甘。"
+      : null,
+  ].filter((note): note is string => Boolean(note));
 
   return (
     <Reveal as="article" id={product.slug} className="grid items-center gap-8 lg:grid-cols-2 lg:gap-14">
       <div className={`relative aspect-[4/5] overflow-hidden rounded-[1.25rem] bg-oat-soft ${reverse ? "lg:order-2" : ""}`}>
-        <SafeImage src={product.imageUrl} alt={`${product.name} 甜點示意圖片`} sizes="(max-width: 1024px) 92vw, 46vw" className="object-cover" />
-        {soldOut ? <span className="badge absolute left-4 top-4 bg-cocoa/85 text-cream">缺貨中</span> : null}
+        <ImageMagnifier src={product.imageUrl} alt={`${product.name} 甜點示意圖片`} sizes="(max-width: 1024px) 92vw, 46vw" />
       </div>
       <div className={reverse ? "lg:order-1" : ""}>
         <p className="eyebrow">{categoryName}</p>
         <h3 className="mt-3 text-3xl leading-tight sm:text-4xl">{product.name}</h3>
-        <p className="mt-3 font-serif text-2xl text-caramel-deep">{priceRange(product.price, activeVariants)}</p>
         {product.summary ? <p className="mt-4 text-base leading-relaxed text-cocoa">{product.summary}</p> : null}
         {paragraphs.length > 0 ? (
           <div className="mt-4 space-y-3 text-sm leading-[1.9] text-cocoa-soft">
@@ -69,18 +59,10 @@ function DessertFeature({
             ))}
           </div>
         ) : null}
-
-        {activeVariants.length > 0 ? (
-          <div className="mt-6">
-            <p className="text-[0.68rem] tracking-[0.2em] text-caramel-deep">規格</p>
-            <ul className="mt-2 flex flex-wrap gap-2">
-              {activeVariants.map((variant) => (
-                <li key={variant.id} className="rounded-full border border-mist px-3.5 py-1.5 text-xs text-cocoa">
-                  {variant.name} · {formatPrice(product.price + variant.priceDelta)}
-                  {Math.min(product.stock, variant.stock) <= 0 ? "（缺貨）" : ""}
-                </li>
-              ))}
-            </ul>
+        {ingredientNotes.length ? (
+          <div className="mt-5 rounded-lg border border-caramel/20 bg-oat-soft/40 px-4 py-3 text-sm leading-relaxed text-cocoa">
+            <p className="text-xs tracking-[0.16em] text-caramel-deep">嚴選原料</p>
+            {ingredientNotes.map((note) => <p key={note} className="mt-1">{note}</p>)}
           </div>
         ) : null}
 
@@ -90,31 +72,8 @@ function DessertFeature({
           <Info label="保存方式" value={product.storageInfo} />
           <Info label="賞味期限" value={product.shelfLife} />
         </dl>
-        {product.pickupNote ? <p className="mt-4 text-xs leading-relaxed text-cocoa-soft">取貨說明：{product.pickupNote}</p> : null}
-
-        <div className="mt-7 flex flex-wrap gap-3">
-          {activeVariants.length > 0 ? (
-            <Link href={`/products/${product.slug}`} className="btn btn-primary">
-              選擇規格並加入購物袋
-            </Link>
-          ) : (
-            <>
-              <AddToBagButton
-                product={{
-                  id: product.id,
-                  slug: product.slug,
-                  name: product.name,
-                  price: product.price,
-                  stock: product.stock,
-                  isActive: product.isActive,
-                  imageUrl: product.imageUrl,
-                }}
-              />
-              <Link href={`/products/${product.slug}`} className="btn btn-secondary">
-                查看商品頁
-              </Link>
-            </>
-          )}
+        <div className="mt-7">
+          <FavoriteButton productId={product.id} slug={product.slug} returnTo={`/desserts#${product.slug}`} />
         </div>
       </div>
     </Reveal>
@@ -123,10 +82,6 @@ function DessertFeature({
 
 export default async function DessertsPage() {
   const [categories, products] = await Promise.all([listCategories(), listProducts({ sort: "newest" })]);
-  const ids = products.map((product) => product.id);
-  const variants = ids.length
-    ? await db.select().from(productVariants).where(inArray(productVariants.productId, ids)).orderBy(asc(productVariants.sortOrder), asc(productVariants.id))
-    : [];
 
   const groups = categories
     .map((category) => ({
@@ -147,7 +102,7 @@ export default async function DessertsPage() {
         <p className="eyebrow">Desserts</p>
         <h1 className="mt-4 text-4xl sm:text-5xl">甜點介紹</h1>
         <p className="mt-5 text-[0.95rem] leading-[1.9] text-cocoa-soft">
-          唯遇甜所是一個人的小小甜點工作。這一頁整理了目前每一款甜點的介紹、規格、成分與保存方式，讓你在下單前可以慢慢看。照片為示意圖片，實際成品會依每次製作略有不同。
+          唯遇甜所是一個人的小小甜點工作。我喜歡把日常的風味，慢慢做成值得細細品嚐的甜點。選材時也在意原料本身的香氣與質地：奶油品項使用總統牌奶油，抹茶品項選用靜岡抹茶粉，讓每一層風味都保有清楚而自然的個性。你可以在這裡認識每款甜點的靈感、口感與原料，也歡迎把喜歡的品項收藏起來。圖片為甜點示意，手作成品可能略有不同。
         </p>
       </Reveal>
 
@@ -186,7 +141,6 @@ export default async function DessertsPage() {
                   <DessertFeature
                     key={product.id}
                     product={product}
-                    variants={variants.filter((variant) => variant.productId === product.id)}
                     categoryName={group.name}
                     index={rowIndex++}
                   />
@@ -206,24 +160,16 @@ export default async function DessertsPage() {
         <div className="mt-6 grid gap-6 md:grid-cols-3">
           <div>
             <p className="font-serif text-xl text-cocoa">常溫甜點</p>
-            <p className="mt-2 text-sm leading-relaxed text-cocoa-soft">請放在陰涼處、避免陽光直射；各款的保存天數以商品頁的賞味期限為準。</p>
+            <p className="mt-2 text-sm leading-relaxed text-cocoa-soft">請放在陰涼處、避免陽光直射；各款的保存天數請依頁面標示為準。</p>
           </div>
           <div>
             <p className="font-serif text-xl text-cocoa">冷藏甜點</p>
-            <p className="mt-2 text-sm leading-relaxed text-cocoa-soft">面交時請自備保冷袋，取貨後盡快放進冰箱冷藏，並在標示天數內吃完。</p>
+            <p className="mt-2 text-sm leading-relaxed text-cocoa-soft">請保持冷藏，食用前可依個人喜好稍微回溫，並在標示天數內享用。</p>
           </div>
           <div>
             <p className="font-serif text-xl text-cocoa">禮盒</p>
-            <p className="mt-2 text-sm leading-relaxed text-cocoa-soft">面交時可直接帶走；包裝上有任何需求，可以在訂單備註告訴我，我會盡量配合。</p>
+            <p className="mt-2 text-sm leading-relaxed text-cocoa-soft">開封後請妥善密封並依內容物的保存方式放置，讓甜點維持合適的風味與口感。</p>
           </div>
-        </div>
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Link href="/products" className="btn btn-primary">
-            前往選購
-          </Link>
-          <Link href="/ordering" className="btn btn-secondary">
-            訂購須知
-          </Link>
         </div>
       </Reveal>
     </div>

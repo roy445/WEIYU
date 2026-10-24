@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useState, type SyntheticEvent } from "react";
 import { LogoMark } from "./logo";
 
 type Props = {
@@ -13,6 +13,7 @@ type Props = {
   fill?: boolean;
   width?: number;
   height?: number;
+  onLoad?: (event: SyntheticEvent<HTMLImageElement>) => void;
 };
 
 export function SafeImage({
@@ -24,6 +25,7 @@ export function SafeImage({
   fill = true,
   width,
   height,
+  onLoad,
 }: Props) {
   const [failed, setFailed] = useState(false);
 
@@ -48,6 +50,7 @@ export function SafeImage({
         sizes={sizes}
         priority={priority}
         onError={() => setFailed(true)}
+        onLoad={onLoad}
         className={className}
       />
     );
@@ -62,6 +65,7 @@ export function SafeImage({
       sizes={sizes}
       priority={priority}
       onError={() => setFailed(true)}
+      onLoad={onLoad}
       className={className}
     />
   );

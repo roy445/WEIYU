@@ -59,12 +59,12 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
 
       <div className="grid gap-8 xl:grid-cols-[1.2fr_0.8fr]">
         <div className="space-y-8">
-          <section className="surface print-hidden rounded-lg p-5">
+          <section className="surface rounded-lg p-5">
             <h2 className="text-xl">商品明細</h2>
             <ul className="mt-3 divide-y divide-mist/60">
               {items.map((item) => (
                 <li key={item.id} className="flex items-center gap-4 py-3">
-                  <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded bg-oat-soft">
+                  <div className="print-order-image relative h-14 w-14 shrink-0 overflow-hidden rounded bg-oat-soft">
                     <SafeImage src={item.imageUrl} alt={item.productName} sizes="56px" className="object-cover" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -82,8 +82,8 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
             <dl className="mt-3 space-y-1 border-t border-mist/60 pt-3 text-sm">
               <div className="flex justify-between"><dt>商品小計</dt><dd>{formatPrice(order.subtotal)}</dd></div>
               {order.couponDiscount > 0 ? <div className="flex justify-between"><dt>優惠券{order.couponTitle ? `（${order.couponTitle}）` : ""}</dt><dd>−{formatPrice(order.couponDiscount)}</dd></div> : null}
-              {order.pointsUsed > 0 ? <div className="flex justify-between"><dt>點數折抵（{order.pointsUsed} 點）</dt><dd>−{formatPrice(order.pointsUsed)}</dd></div> : null}
-              {order.pointsEarned > 0 ? <div className="flex justify-between"><dt>完成後回饋點數</dt><dd>{order.pointsEarned} 點</dd></div> : null}
+              {order.pointsUsed > 0 ? <div className="flex justify-between"><dt>甜甜數折抵（{order.pointsUsed} 點）</dt><dd>−{formatPrice(order.pointsUsed)}</dd></div> : null}
+              {order.pointsEarned > 0 ? <div className="flex justify-between"><dt>完成後回饋甜甜數</dt><dd>{order.pointsEarned} 點</dd></div> : null}
             </dl>
             {order.customerNote ? (
               <div className="mt-4 rounded bg-cream-deep/80 px-4 py-3 text-sm">
@@ -123,7 +123,7 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
               <div><dt className="text-xs text-cocoa-soft">會員帳號</dt><dd>{row.memberName ?? "—"}（{row.memberEmail ?? "—"}）</dd></div>
             </dl>
           </div>
-          <div className="surface rounded-lg p-5 text-sm">
+          <div className="surface print-hidden rounded-lg p-5 text-sm">
             <p className="eyebrow">History</p>
             {logs.length === 0 ? (
               <p className="mt-3 text-xs text-cocoa-soft">尚無操作紀錄。</p>

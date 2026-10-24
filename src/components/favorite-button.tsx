@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useStore } from "./store-provider";
 
-export function FavoriteButton({ productId, slug, compact = false, initialFavorited = false }: { productId: number; slug: string; compact?: boolean; initialFavorited?: boolean }) {
+export function FavoriteButton({ productId, slug, compact = false, initialFavorited = false, returnTo }: { productId: number; slug: string; compact?: boolean; initialFavorited?: boolean; returnTo?: string }) {
   const router = useRouter();
   const { toast } = useStore();
   const [pending, setPending] = useState(false);
@@ -41,7 +41,7 @@ export function FavoriteButton({ productId, slug, compact = false, initialFavori
           });
       const data = (await response.json()) as { ok?: boolean; error?: string };
       if (response.status === 401) {
-        router.push(`/login?next=${encodeURIComponent(`/products/${slug}`)}`);
+        router.push(`/login?next=${encodeURIComponent(returnTo ?? `/products/${slug}`)}`);
         return;
       }
       if (!response.ok || !data.ok) {

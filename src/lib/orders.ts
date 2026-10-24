@@ -102,7 +102,7 @@ export async function placeOrder(userId: number, input: PlaceOrderInput): Promis
     throw new OrderError("優惠券選擇不正確，請重新整理頁面。");
   }
   if (!Number.isInteger(pointsToUse) || pointsToUse < 0 || pointsToUse > 1_000_000) {
-    throw new OrderError("點數折抵數量不正確。");
+    throw new OrderError("甜甜數折抵數量不正確。");
   }
 
   try {
@@ -301,7 +301,7 @@ async function runPlaceOrder(userId: number, normalized: NormalizedItem[], meta:
 
     const maxPointsUsable = subtotal - couponDiscount;
     if (meta.pointsToUse > maxPointsUsable) {
-      throw new OrderError(`目前最多可使用 ${maxPointsUsable} 點，點數折抵不可高於優惠券折抵後的商品金額。`, 409);
+      throw new OrderError(`目前最多可使用 ${maxPointsUsable} 點甜甜數，折抵不可高於優惠券折抵後的商品金額。`, 409);
     }
     const pointRows = meta.pointsToUse > 0
       ? await tx
@@ -313,7 +313,7 @@ async function runPlaceOrder(userId: number, normalized: NormalizedItem[], meta:
       : [];
     const availablePoints = pointRows.reduce((total, lot) => total + lot.remaining, 0);
     if (meta.pointsToUse > availablePoints) {
-      throw new OrderError(`可用點數不足，目前只有 ${availablePoints} 點。`, 409);
+      throw new OrderError(`可用甜甜數不足，目前只有 ${availablePoints} 點。`, 409);
     }
 
     // 扣庫存（條件式更新，避免負庫存與超賣）
