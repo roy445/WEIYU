@@ -11,6 +11,7 @@ import { OrderStatusBadge, PaymentStatusBadge } from "@/components/status-badge"
 import { getCurrentUser } from "@/lib/auth";
 import { getPointsBalance } from "@/lib/rewards";
 import { formatDate, formatDateTime, formatPrice } from "@/lib/brand";
+import { formatMembershipSpend, getMembershipTier } from "@/lib/membership";
 
 export const metadata: Metadata = { title: "會員中心" };
 export const dynamic = "force-dynamic";
@@ -30,6 +31,10 @@ export default async function AccountPage() {
   } catch {
     loadError = true;
   }
+  const completedSpend = myOrders
+    .filter((order) => order.status === "completed")
+    .reduce((total, order) => total + order.total, 0);
+  const membership = getMembershipTier(completedSpend);
 
   return (
     <div className="container-wy py-12 md:py-16">
@@ -100,6 +105,15 @@ export default async function AccountPage() {
               會員資料
             </h2>
             <p className="mt-1 text-xs text-cocoa-soft">結帳時會自動帶入，面交時我會以此聯繫你。</p>
+            <div className="mt-4 rounded-lg border border-mist/60 bg-cream-deep/40 p-4 text-sm">
+              <p>加入日期：{formatDateTime(user.createdAt)}</p>
+              <p className="mt-1">會員等級：{membership.current.name}</p>
+              <p className="mt-1 text-xs text-cocoa-soft">
+                已完成訂單累積消費 {formatMembershipSpend(completedSpend)}
+                {membership.next ? `，再消費 ${formatMembershipSpend(membership.remainingSpend)} 可升級為「${membership.next.name}」` : "，已達最高等級"}
+              </p>
+              <Link href="/membership" className="mt-2 inline-block text-xs text-caramel-deep underline underline-offset-4">查看會員等級制度</Link>
+            </div>
             <div className="mt-5">
               <ProfileForm user={{ name: user.name, email: user.email, phone: user.phone, theme: user.theme, avatarColor: user.avatarColor, avatarUrl: user.avatarUrl }} />
             </div>

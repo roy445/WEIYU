@@ -118,6 +118,18 @@ export async function sendPasswordResetEmail(to: string, token: string): Promise
   await sendBrandedEmail(to, "重設唯遇甜所帳號密碼", "重設你的密碼", body);
 }
 
+export async function sendEmailVerificationEmail(to: string, token: string, next?: string): Promise<void> {
+  const { siteUrl } = getEmailConfig();
+  const activationQuery = new URLSearchParams({ token });
+  if (next && next.startsWith("/") && !next.startsWith("//")) activationQuery.set("next", next);
+  const activationUrl = `${siteUrl}/activate-account?${activationQuery.toString()}`;
+  const body = `<p style="font-size:15px;line-height:1.8;color:#6f5545">請在 <strong>1 小時內</strong>點選下方按鈕啟用帳號。啟用前無法登入或使用會員功能；新註冊資料若逾時未啟用，系統會自動刪除，屆時請重新註冊。</p>
+<p style="margin:26px 0"><a href="${escapeHtml(activationUrl)}" style="display:inline-block;border-radius:999px;background:#a8754a;padding:13px 24px;color:#fffaf3;text-decoration:none;font-size:14px">啟用會員帳號</a></p>
+<p style="font-size:12px;line-height:1.7;color:#6f5545">若按鈕無法使用，請複製此網址到瀏覽器：<br><a href="${escapeHtml(activationUrl)}" style="color:#8a5c36;word-break:break-all">${escapeHtml(activationUrl)}</a></p>
+<p style="font-size:13px;line-height:1.8;color:#6f5545"><strong>如果收件匣沒有看到這封信，請檢查垃圾郵件／垃圾信件資料夾。</strong>若信件在垃圾郵件中，請將它移至收件匣，並按「回報為非垃圾郵件」或「非垃圾郵件」，之後才能順利收到帳號通知。若你沒有申請此帳號，請忽略這封信。</p>`;
+  await sendBrandedEmail(to, "請啟用你的唯遇甜所會員帳號", "完成帳號啟用", body);
+}
+
 export async function sendAnnouncementEmail(
   to: string,
   title: string,
@@ -142,6 +154,19 @@ ${product.summary ? `<p style="font-size:14px;line-height:1.8;color:#6f5545">${e
 <p style="margin:26px 0"><a href="${escapeHtml(productUrl)}" style="display:inline-block;border-radius:999px;background:#a8754a;padding:13px 24px;color:#fffaf3;text-decoration:none;font-size:14px">查看甜點</a></p>
 <p style="font-size:12px;line-height:1.7;color:#6f5545">這封信是因你登記此商品的上架提醒而寄出，不會加入其他行銷郵件。</p>`;
   await sendBrandedEmail(to, `上架通知｜${product.name}`, `${product.name} 已上架`, body);
+}
+
+export async function sendProductTrackingEmail(
+  to: string,
+  product: { name: string; slug: string; changes: string[] },
+): Promise<void> {
+  const { siteUrl } = getEmailConfig();
+  const productUrl = `${siteUrl}/products/${encodeURIComponent(product.slug)}`;
+  const body = `<p style="font-size:15px;line-height:1.8;color:#6f5545">你主動開啟追蹤的商品「${escapeHtml(product.name)}」有以下變化：</p>
+<ul style="font-size:14px;line-height:1.9;color:#6f5545">${product.changes.map((change) => `<li>${escapeHtml(change)}</li>`).join("")}</ul>
+<p style="margin:26px 0"><a href="${escapeHtml(productUrl)}" style="display:inline-block;border-radius:999px;background:#a8754a;padding:13px 24px;color:#fffaf3;text-decoration:none;font-size:14px">查看商品</a></p>
+<p style="font-size:12px;line-height:1.7;color:#6f5545">這封通知只因你主動追蹤此商品而寄出。你可在商品頁關閉追蹤或 Email 通知。</p>`;
+  await sendBrandedEmail(to, `商品追蹤通知｜${product.name}`, `${product.name} 商品資訊更新`, body);
 }
 
 export async function sendOrderEmail(orderId: number, kind: "created" | "status"): Promise<void> {

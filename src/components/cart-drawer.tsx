@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { formatPrice } from "@/lib/brand";
 import { SafeImage } from "./safe-image";
 import { useStore } from "./store-provider";
+import { ShareCartButton } from "./share-cart-button";
 
 export function CartDrawer() {
   const { lines, count, subtotal, cartOpen, closeCart, setQuantity, removeLine, isReady, syncPrices } =
@@ -170,6 +171,7 @@ export function CartDrawer() {
               <Link href="/checkout" onClick={closeCart} className="btn btn-primary mt-3 w-full">
                 前往結帳
               </Link>
+              <ShareCartButton />
               <button
                 type="button"
                 onClick={closeCart}

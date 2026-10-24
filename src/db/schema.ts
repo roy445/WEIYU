@@ -29,6 +29,8 @@ export const users = pgTable(
     theme: text("theme").notNull().default("light"),
     avatarColor: text("avatar_color").notNull().default("caramel"),
     avatarUrl: text("avatar_url"),
+    emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
+    pendingVerificationExpiresAt: timestamp("pending_verification_expires_at", { withTimezone: true }),
     termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true }),
     privacyAcknowledgedAt: timestamp("privacy_acknowledged_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -59,7 +61,11 @@ export const coupons = pgTable(
     type: text("type").notNull(),
     value: integer("value").notNull(),
     minimumSubtotal: integer("minimum_subtotal").notNull().default(0),
+    maxDiscount: integer("max_discount"),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    newMemberOnly: boolean("new_member_only").notNull().default(false),
+    firstOrderOnly: boolean("first_order_only").notNull().default(false),
+    claimExpiresDays: integer("claim_expires_days"),
     maxRedemptions: integer("max_redemptions"),
     redemptionCount: integer("redemption_count").notNull().default(0),
     isActive: boolean("is_active").notNull().default(true),
@@ -96,6 +102,19 @@ export const passwordResetTokens = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index("password_reset_user_idx").on(table.userId)],
+);
+
+export const emailVerificationTokens = pgTable(
+  "email_verification_tokens",
+  {
+    id: text("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("email_verification_user_unique").on(table.userId)],
 );
 
 export const categories = pgTable(
@@ -142,6 +161,85 @@ export const products = pgTable(
     uniqueIndex("products_slug_unique").on(table.slug),
     index("products_category_idx").on(table.categoryId),
     index("products_active_idx").on(table.isActive),
+  ],
+);
+
+export const materials = pgTable(
+  "materials",
+  {
+    id: serial("id").primaryKey(),
+    name: text("name").notNull(),
+    unit: text("unit").notNull(),
+    packageQuantityMilli: integer("package_quantity_milli").notNull(),
+    purchaseCost: integer("purchase_cost").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("materials_name_unique").on(table.name)],
+);
+
+export const productRecipeItems = pgTable(
+  "product_recipe_items",
+  {
+    id: serial("id").primaryKey(),
+    productId: integer("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    materialId: integer("material_id")
+      .notNull()
+      .references(() => materials.id, { onDelete: "restrict" }),
+    amountMilli: integer("amount_milli").notNull(),
+  },
+  (table) => [
+    uniqueIndex("product_recipe_material_unique").on(table.productId, table.materialId),
+    index("product_recipe_product_idx").on(table.productId),
+  ],
+);
+
+export const productCostSettings = pgTable("product_cost_settings", {
+  productId: integer("product_id")
+    .primaryKey()
+    .references(() => products.id, { onDelete: "cascade" }),
+  batchYield: integer("batch_yield").notNull().default(1),
+  laborCost: integer("labor_cost").notNull().default(0),
+  overheadCost: integer("overhead_cost").notNull().default(0),
+  wasteBasisPoints: integer("waste_basis_points").notNull().default(0),
+  targetMarginBasisPoints: integer("target_margin_basis_points").notNull().default(5000),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const productMetricEvents = pgTable(
+  "product_metric_events",
+  {
+    id: serial("id").primaryKey(),
+    productId: integer("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    event: text("event").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("product_metric_events_product_time_idx").on(table.productId, table.createdAt),
+    index("product_metric_events_event_time_idx").on(table.event, table.createdAt),
+  ],
+);
+
+export const productTrackers = pgTable(
+  "product_trackers",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    productId: integer("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    emailEnabled: boolean("email_enabled").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("product_trackers_user_product_unique").on(table.userId, table.productId),
+    index("product_trackers_product_idx").on(table.productId),
   ],
 );
 
@@ -205,6 +303,7 @@ export const announcements = pgTable(
     title: text("title").notNull(),
     body: text("body").notNull(),
     type: text("type").notNull().default("info"),
+    displayMode: text("display_mode").notNull().default("inbox"),
     sendEmail: boolean("send_email").notNull().default(true),
     createdBy: integer("created_by").references(() => users.id, { onDelete: "set null" }),
     publishedAt: timestamp("published_at", { withTimezone: true }).notNull().defaultNow(),
@@ -309,6 +408,7 @@ export const orders = pgTable(
     uniqueIndex("orders_client_request_unique").on(table.clientRequestId),
     index("orders_user_idx").on(table.userId),
     index("orders_status_idx").on(table.status),
+    index("orders_status_completed_idx").on(table.status, table.completedAt),
     index("orders_created_idx").on(table.createdAt),
   ],
 );
@@ -345,12 +445,28 @@ export const userCoupons = pgTable(
       .references(() => coupons.id, { onDelete: "restrict" }),
     status: text("status").notNull().default("available"),
     claimedAt: timestamp("claimed_at", { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
     usedAt: timestamp("used_at", { withTimezone: true }),
     usedOrderId: integer("used_order_id").references(() => orders.id, { onDelete: "set null" }),
   },
   (table) => [
     uniqueIndex("user_coupons_user_coupon_unique").on(table.userId, table.couponId),
     index("user_coupons_user_status_idx").on(table.userId, table.status),
+  ],
+);
+
+export const cartShares = pgTable(
+  "cart_shares",
+  {
+    id: serial("id").primaryKey(),
+    tokenHash: text("token_hash").notNull(),
+    items: jsonb("items").$type<{ productId: number; variantId: number | null; quantity: number }[]>().notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("cart_shares_token_hash_unique").on(table.tokenHash),
+    index("cart_shares_expiry_idx").on(table.expiresAt),
   ],
 );
 

@@ -16,10 +16,12 @@ import {
   products,
   shopSettings,
   userCoupons,
+  users,
 } from "@/db/schema";
 import { todayInTaipei } from "./brand";
 import type { SessionUser } from "./auth";
 import { addThreeMonths } from "./rewards";
+import { notifyProductTrackersForChange } from "./product-tracking";
 
 export class OrderError extends Error {
   status: number;
@@ -47,6 +49,7 @@ export type PlaceOrderResult = {
   orderNo: string;
   total: number;
   alreadyExisted: boolean;
+  stockChanges: { productId: number; oldStock: number; newStock: number }[];
 };
 
 function makeOrderNo(): string {
@@ -126,7 +129,7 @@ export async function placeOrder(userId: number, input: PlaceOrderInput): Promis
         .where(and(eq(orders.userId, userId), eq(orders.clientRequestId, requestId)))
         .limit(1);
       if (existing[0]) {
-        return { orderId: existing[0].id, orderNo: existing[0].orderNo, total: existing[0].total, alreadyExisted: true };
+        return { orderId: existing[0].id, orderNo: existing[0].orderNo, total: existing[0].total, alreadyExisted: true, stockChanges: [] };
       }
     }
     throw error;
@@ -161,6 +164,7 @@ async function runPlaceOrder(userId: number, normalized: NormalizedItem[], meta:
           orderNo: existing[0].orderNo,
           total: existing[0].total,
           alreadyExisted: true,
+          stockChanges: [],
         };
       }
     }
@@ -289,12 +293,28 @@ async function runPlaceOrder(userId: number, normalized: NormalizedItem[], meta:
       if (!userCoupon) throw new OrderError("此優惠券已使用或不屬於你的帳號。", 409);
       const couponRows = await tx.select().from(coupons).where(eq(coupons.id, userCoupon.couponId)).for("update").limit(1);
       const coupon = couponRows[0];
-      if (!coupon || coupon.type === "points" || coupon.expiresAt <= new Date()) {
+      const now = new Date();
+      const userCouponExpiresAt = userCoupon.expiresAt ?? coupon?.expiresAt;
+      if (!coupon || coupon.type === "points" || !userCouponExpiresAt || userCouponExpiresAt <= now) {
         throw new OrderError("此優惠券已過期或不能用於訂單折抵。", 409);
+      }
+      if (coupon.newMemberOnly) {
+        const memberRows = await tx.select({ createdAt: users.createdAt }).from(users).where(eq(users.id, userId)).limit(1);
+        if (!memberRows[0] || memberRows[0].createdAt < coupon.createdAt) {
+          throw new OrderError("這組優惠券僅提供活動開始後註冊的新會員。", 409);
+        }
+      }
+      if (coupon.firstOrderOnly) {
+        const completedOrders = await tx
+          .select({ id: orders.id })
+          .from(orders)
+          .where(and(eq(orders.userId, userId), ne(orders.status, "cancelled")))
+          .limit(1);
+        if (completedOrders.length) throw new OrderError("此優惠券限尚未建立過其他訂單的新會員使用。", 409);
       }
       if (subtotal < coupon.minimumSubtotal) throw new OrderError(`此優惠券需消費滿 NT$${coupon.minimumSubtotal} 才能使用。`, 409);
       couponDiscount = coupon.type === "percent"
-        ? Math.floor((subtotal * coupon.value) / 100)
+        ? Math.min(Math.floor((subtotal * coupon.value) / 100), coupon.maxDiscount ?? 1_000_000)
         : Math.min(subtotal, coupon.value);
       couponTitle = coupon.title;
     }
@@ -316,8 +336,11 @@ async function runPlaceOrder(userId: number, normalized: NormalizedItem[], meta:
       throw new OrderError(`可用甜甜數不足，目前只有 ${availablePoints} 點。`, 409);
     }
 
+    const stockChangeMap = new Map<number, { productId: number; oldStock: number; newStock: number }>();
     // 扣庫存（條件式更新，避免負庫存與超賣）
     for (const line of lines) {
+      const product = productMap.get(line.productId);
+      if (!product) throw new OrderError("有商品已不存在，請重新整理購物袋。", 409);
       const updated = await tx
         .update(products)
         .set({
@@ -325,10 +348,16 @@ async function runPlaceOrder(userId: number, normalized: NormalizedItem[], meta:
           updatedAt: new Date(),
         })
         .where(and(eq(products.id, line.productId), gte(products.stock, line.quantity)))
-        .returning({ id: products.id });
+        .returning({ id: products.id, stock: products.stock });
       if (updated.length === 0) {
         throw new OrderError(`「${line.productName}」庫存不足，請調整數量。`, 409);
       }
+      const previousChange = stockChangeMap.get(line.productId);
+      stockChangeMap.set(line.productId, {
+        productId: line.productId,
+        oldStock: previousChange?.oldStock ?? product.stock,
+        newStock: updated[0].stock,
+      });
       if (line.variantId) {
         const updatedVariant = await tx
           .update(productVariants)
@@ -410,7 +439,7 @@ async function runPlaceOrder(userId: number, normalized: NormalizedItem[], meta:
       pointsRemainingToUse -= used;
     }
 
-    return { orderId: created.id, orderNo: created.orderNo, total, alreadyExisted: false };
+    return { orderId: created.id, orderNo: created.orderNo, total, alreadyExisted: false, stockChanges: [...stockChangeMap.values()] };
   });
 }
 
@@ -421,7 +450,7 @@ export async function applyAdminOrderAction(
   orderId: number,
   action: AdminAction,
   payload?: { adminNote?: string },
-): Promise<{ ok: true; status: string; paymentStatus: string }> {
+): Promise<{ ok: true; status: string; paymentStatus: string; notificationWarning?: string }> {
   const result = await db.transaction(async (tx) => {
     const rows = await tx.select().from(orders).where(eq(orders.id, orderId)).for("update").limit(1);
     const order = rows[0];
@@ -431,6 +460,7 @@ export async function applyAdminOrderAction(
     let paymentStatus = order.paymentStatus;
     const now = new Date();
     const patch: Record<string, unknown> = { updatedAt: now };
+    const stockChangeMap = new Map<number, { productId: number; oldStock: number; newStock: number }>();
 
     if (typeof payload?.adminNote === "string") {
       patch.adminNote = payload.adminNote.trim().slice(0, 1000) || null;
@@ -479,10 +509,20 @@ export async function applyAdminOrderAction(
           const items = await tx.select().from(orderItems).where(eq(orderItems.orderId, order.id));
           for (const item of items) {
             if (item.productId) {
-              await tx
+              const [before] = await tx.select({ stock: products.stock }).from(products).where(eq(products.id, item.productId)).limit(1);
+              const [restored] = await tx
                 .update(products)
                 .set({ stock: sql`${products.stock} + ${item.quantity}`, updatedAt: now })
-                .where(eq(products.id, item.productId));
+                .where(eq(products.id, item.productId))
+                .returning({ stock: products.stock });
+              if (before && restored) {
+                const previous = stockChangeMap.get(item.productId);
+                stockChangeMap.set(item.productId, {
+                  productId: item.productId,
+                  oldStock: previous?.oldStock ?? before.stock,
+                  newStock: restored.stock,
+                });
+              }
             }
             if (item.variantId) {
               await tx
@@ -511,9 +551,11 @@ export async function applyAdminOrderAction(
           .where(and(eq(userCoupons.usedOrderId, order.id), eq(userCoupons.status, "used")))
           .for("update");
         for (const usedCoupon of usedCoupons) {
+          const userCouponRows = await tx.select({ expiresAt: userCoupons.expiresAt }).from(userCoupons).where(eq(userCoupons.id, usedCoupon.id)).limit(1);
           const couponRows = await tx.select({ expiresAt: coupons.expiresAt, isActive: coupons.isActive }).from(coupons).where(eq(coupons.id, usedCoupon.couponId)).limit(1);
           const coupon = couponRows[0];
-          if (coupon && coupon.expiresAt > now) {
+          const effectiveExpiry = userCouponRows[0]?.expiresAt ?? coupon?.expiresAt;
+          if (coupon?.isActive && effectiveExpiry && effectiveExpiry > now) {
             await tx.update(userCoupons)
               .set({ status: "available", usedAt: null, usedOrderId: null })
               .where(eq(userCoupons.id, usedCoupon.id));
@@ -562,9 +604,19 @@ export async function applyAdminOrderAction(
       targetId: String(order.id),
       detail: `訂單 ${order.orderNo} → 狀態 ${status}／付款 ${paymentStatus}`,
     });
-    return { ok: true as const, status, paymentStatus };
+    return { ok: true as const, status, paymentStatus, stockChanges: [...stockChangeMap.values()] };
   });
-  return result;
+  const notifications = await Promise.all(result.stockChanges.map((change) =>
+    notifyProductTrackersForChange(change.productId, change),
+  ));
+  const warning = notifications.find((notification) => notification.warning)?.warning ??
+    (notifications.some((notification) => notification.emailFailed > 0) ? "庫存已恢復，但部分商品追蹤 Email 寄送失敗。" : undefined);
+  return {
+    ok: true,
+    status: result.status,
+    paymentStatus: result.paymentStatus,
+    ...(warning ? { notificationWarning: warning } : {}),
+  };
 }
 
 export async function logAdminAction(

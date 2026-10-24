@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { fail, ok, readJson, asString, asInt, clientKey, rateLimit } from "@/lib/api";
 import { OrderError, placeOrder } from "@/lib/orders";
 import { sendOrderEmail } from "@/lib/email";
+import { notifyProductTrackersForChange } from "@/lib/product-tracking";
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -52,8 +53,15 @@ export async function POST(request: Request) {
       userCouponId: body.userCouponId == null ? null : asInt(body.userCouponId),
       pointsToUse: asInt(body.pointsToUse, 0),
     });
+    const { stockChanges, ...orderResult } = result;
+    let notificationWarning: string | undefined;
     let notificationSent: boolean | undefined;
     if (!result.alreadyExisted) {
+      const trackingResults = await Promise.all(stockChanges.map((change) =>
+        notifyProductTrackersForChange(change.productId, change),
+      ));
+      notificationWarning = trackingResults.find((notification) => notification.warning)?.warning ??
+        (trackingResults.some((notification) => notification.emailFailed > 0) ? "部分商品追蹤 Email 寄送失敗。" : undefined);
       try {
         await sendOrderEmail(result.orderId, "created");
         notificationSent = true;
@@ -63,9 +71,9 @@ export async function POST(request: Request) {
       }
     }
     return ok({
-      ...result,
+      ...orderResult,
       ...(notificationSent === undefined ? {} : { notificationSent }),
-      ...(notificationSent === false ? { notificationWarning: "訂單已成立，但通知 Email 寄送失敗；請稍後聯繫店家確認。" } : {}),
+      ...(notificationSent === false ? { notificationWarning: [notificationWarning, "訂單已成立，但通知 Email 寄送失敗；請稍後聯繫店家確認。"].filter(Boolean).join(" ") } : notificationWarning ? { notificationWarning } : {}),
     }, result.alreadyExisted ? 200 : 201);
   } catch (error) {
     if (error instanceof OrderError) return fail(error.message, error.status);

@@ -102,6 +102,9 @@ export function LoginForm({ next }: { next?: string }) {
       <p className="-mt-2 text-center text-sm">
         <Link href="/forgot-password" className="text-caramel-deep underline underline-offset-4">忘記密碼？</Link>
       </p>
+      <p className="-mt-3 text-center text-sm">
+        <Link href="/resend-activation" className="text-caramel-deep underline underline-offset-4">未收到啟用信或需要重新驗證？</Link>
+      </p>
       <p className="text-center text-sm text-cocoa-soft">
         還沒有帳號？
         <Link href={`/register${next ? `?next=${encodeURIComponent(target)}` : ""}`} className="ml-1 underline decoration-mist underline-offset-4 hover:text-caramel-deep">
@@ -113,20 +116,20 @@ export function LoginForm({ next }: { next?: string }) {
 }
 
 export function RegisterForm({ next }: { next?: string }) {
-  const router = useRouter();
-  const { toast } = useStore();
   const [form, setForm] = useState({ name: "", email: "", password: "", passwordConfirm: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [privacyAcknowledged, setPrivacyAcknowledged] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const target = safeNext(next);
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setError(null);
+    setMessage(null);
     if (form.password !== form.passwordConfirm) {
       setError("兩次輸入的密碼不一致。");
       return;
@@ -140,16 +143,14 @@ export function RegisterForm({ next }: { next?: string }) {
       const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, termsAccepted, privacyAcknowledged }),
+        body: JSON.stringify({ ...form, termsAccepted, privacyAcknowledged, next }),
       });
-      const data = (await response.json()) as { ok?: boolean; error?: string };
+      const data = (await response.json()) as { ok?: boolean; error?: string; message?: string };
       if (!response.ok || !data.ok) {
         setError(data.error ?? "註冊失敗，請再試一次。");
         return;
       }
-      toast("註冊成功，歡迎加入唯遇甜所。");
-      router.push(target);
-      router.refresh();
+      setMessage(data.message ?? "請查看 Email 完成帳號啟用。");
     } catch {
       setError("網路或伺服器發生問題，請稍後再試。");
     } finally {
@@ -257,6 +258,7 @@ export function RegisterForm({ next }: { next?: string }) {
       <div aria-live="polite" className="min-h-5">
         {error ? <p className="text-sm text-[#8A4B3D] animate-fade-in">{error}</p> : null}
       </div>
+      {message ? <div role="status" className="rounded-lg border border-mist bg-cream/50 p-4 text-sm leading-relaxed text-cocoa-soft">{message} 請先檢查收件匣；若沒有看到，請到垃圾郵件資料夾，並將信件移至收件匣、回報為「非垃圾郵件」。</div> : null}
       <button type="submit" className="btn btn-primary w-full" disabled={pending}>
         {pending ? "建立中…" : "建立會員"}
       </button>

@@ -12,6 +12,7 @@ const links = [
   { href: "/admin/coupons", label: "優惠券", icon: "◇" },
   { href: "/admin/announcements", label: "公告", icon: "♧" },
   { href: "/admin/products", label: "商品", icon: "✿" },
+  { href: "/admin/costs", label: "成本與定價", icon: "$" },
   { href: "/admin/analytics", label: "商品成效", icon: "↗" },
   { href: "/admin/members", label: "會員帳號", icon: "◎" },
   { href: "/admin/pickup", label: "面交時段", icon: "◷" },

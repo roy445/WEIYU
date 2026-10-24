@@ -18,7 +18,7 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
           <LogoMark className="h-24 w-[4.3rem] text-caramel" strokeWidth={1.8} title="WEIYU 唯遇甜所 品牌標誌" />
           <p className="eyebrow mt-5">Join us</p>
           <h1 className="mt-3 text-3xl">建立會員</h1>
-          <p className="mt-3 text-sm text-cocoa-soft">建立帳號後即可送出面交訂單。只會收集完成訂單所需的資料。</p>
+          <p className="mt-3 text-sm text-cocoa-soft">註冊後請於 1 小時內透過 Email 啟用帳號，才能登入與使用會員功能。</p>
         </div>
         <div className="mt-8">
           <RegisterForm next={next} />

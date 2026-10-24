@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { FavoriteButton } from "@/components/favorite-button";
-import { ImageMagnifier } from "@/components/image-magnifier";
 import { Reveal } from "@/components/reveal";
+import { SafeImage } from "@/components/safe-image";
 import { listCategories, listProducts } from "@/lib/products";
 
 export const metadata: Metadata = {
@@ -46,7 +46,7 @@ function DessertFeature({
   return (
     <Reveal as="article" id={product.slug} className="grid items-center gap-8 lg:grid-cols-2 lg:gap-14">
       <div className={`relative aspect-[4/5] overflow-hidden rounded-[1.25rem] bg-oat-soft ${reverse ? "lg:order-2" : ""}`}>
-        <ImageMagnifier src={product.imageUrl} alt={`${product.name} 甜點示意圖片`} sizes="(max-width: 1024px) 92vw, 46vw" />
+        <SafeImage src={product.imageUrl} alt={`${product.name} 甜點示意圖片`} sizes="(max-width: 1024px) 92vw, 46vw" className="object-cover" />
       </div>
       <div className={reverse ? "lg:order-1" : ""}>
         <p className="eyebrow">{categoryName}</p>

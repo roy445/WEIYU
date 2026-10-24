@@ -6,6 +6,8 @@ import { ProductLaunchReminder } from "@/components/product-launch-reminder";
 import { ProductViewTracker } from "@/components/product-view-tracker";
 import { FavoriteButton } from "@/components/favorite-button";
 import { ProductImageGallery } from "@/components/product-image-gallery";
+import { ShareButton } from "@/components/share-button";
+import { ProductTrackingButton } from "@/components/product-tracking-button";
 import { Reveal } from "@/components/reveal";
 import { getProductBySlug } from "@/lib/products";
 import { formatLaunchDate } from "@/lib/brand";
@@ -86,8 +88,12 @@ export default async function ProductPage({ params }: { params: Params }) {
 
           <div className="mt-8 animate-rise" style={{ animationDelay: "240ms" }}>
             <div className="mb-4 flex justify-end">
-              <FavoriteButton productId={product.id} slug={product.slug} />
+              <div className="flex gap-2">
+                <ShareButton title={product.name} path={`/products/${product.slug}`} />
+                <FavoriteButton productId={product.id} slug={product.slug} />
+              </div>
             </div>
+            {!comingSoon && product.isActive ? <ProductTrackingButton productId={product.id} slug={product.slug} /> : null}
             {comingSoon && product.launchAt ? (
               <div className="space-y-4">
                 <p className="rounded-lg border border-caramel/25 bg-oat-soft/50 px-4 py-3 text-sm text-cocoa">

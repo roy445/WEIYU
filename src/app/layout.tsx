@@ -43,7 +43,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-screen bg-cream text-cocoa antialiased">{children}</body>
+      <body className="min-h-screen bg-cream text-cocoa">{children}</body>
     </html>
   );
 }

@@ -21,6 +21,7 @@ type AvailableCoupon = {
   type: "fixed" | "percent";
   value: number;
   minimumSubtotal: number;
+  maxDiscount: number | null;
   expiresAt: string;
 };
 
@@ -82,7 +83,7 @@ export function CheckoutForm({ user, slots, acceptingOrders }: Props) {
   const selectedCoupon = availableCoupons.find((coupon) => coupon.id === selectedCouponId) ?? null;
   const couponDiscount = selectedCoupon && subtotal >= selectedCoupon.minimumSubtotal
     ? selectedCoupon.type === "percent"
-      ? Math.floor((subtotal * selectedCoupon.value) / 100)
+      ? Math.min(Math.floor((subtotal * selectedCoupon.value) / 100), selectedCoupon.maxDiscount ?? 1_000_000)
       : Math.min(subtotal, selectedCoupon.value)
     : 0;
   const maximumPoints = Math.max(0, subtotal - couponDiscount);

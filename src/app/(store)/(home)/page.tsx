@@ -3,9 +3,14 @@ import Link from "next/link";
 import { LogoMark, LogoStacked } from "@/components/logo";
 import { ProductCard } from "@/components/product-card";
 import { Reveal } from "@/components/reveal";
+import { HeroDessertCarousel } from "@/components/hero-dessert-carousel";
 import { listCategories, listProducts } from "@/lib/products";
 import { getShopSettings } from "@/lib/settings";
 import { hasActivePickupOptions } from "@/lib/orders";
+import { AnnouncementMarquee } from "@/components/announcement-banner";
+import { db } from "@/db";
+import { announcements } from "@/db/schema";
+import { desc, eq } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
@@ -35,16 +40,27 @@ const faqs = [
 ];
 
 export default async function HomePage() {
-  const [featured, categories, settings, pickupReady] = await Promise.all([
+  const [featured, categories, settings, pickupReady, marqueeAnnouncements] = await Promise.all([
     listProducts({ sort: "newest" }),
     listCategories(),
     getShopSettings(),
     hasActivePickupOptions(),
+    db.select({ id: announcements.id, title: announcements.title, body: announcements.body })
+      .from(announcements)
+      .where(eq(announcements.displayMode, "marquee"))
+      .orderBy(desc(announcements.publishedAt))
+      .limit(5),
   ]);
   const featuredItems = featured.slice(0, 6);
+  const heroSlides = featured.flatMap((product) =>
+    product.isActive && product.imageUrl
+      ? [{ slug: product.slug, name: product.name, imageUrl: product.imageUrl }]
+      : [],
+  ).slice(0, 6);
 
   return (
     <>
+      <AnnouncementMarquee announcements={marqueeAnnouncements} />
       {/* Hero */}
       <section className="relative overflow-hidden">
         <div className="container-wy grid items-center gap-12 py-12 md:py-20 lg:grid-cols-[1.05fr_1fr] lg:gap-16">
@@ -84,20 +100,17 @@ export default async function HomePage() {
 
           <div className="order-1 lg:order-2">
             <div className="relative mx-auto w-full max-w-md animate-scale-in sm:max-w-lg lg:max-w-none">
-              <div className="relative aspect-[4/5] overflow-hidden rounded-[1.25rem] bg-oat-soft">
-                <Image
-                  src="/images/hero.jpg"
-                  alt="奶油白餐桌上的手作甜點示意圖，自然光下的可麗露與瑪德蓮"
-                  fill
-                  priority
-                  sizes="(max-width: 1024px) 90vw, 46vw"
-                  className="object-cover animate-slow-zoom"
-                />
-                <div className="absolute inset-x-5 bottom-5 flex items-center justify-between rounded-lg border border-cream/60 bg-cream/85 px-4 py-3 text-xs tracking-[0.1em] text-cocoa backdrop-blur-sm">
-                  <span>示意圖片 · 實際商品以面交時為準</span>
-                  <span className="font-serif text-sm tracking-[0.3em] text-caramel-deep">WEIYU</span>
+              {heroSlides.length ? (
+                <HeroDessertCarousel slides={heroSlides} />
+              ) : (
+                <div className="relative aspect-[4/5] overflow-hidden rounded-[1.25rem] bg-oat-soft">
+                  <div className="absolute inset-0 bg-[url('/images/hero.jpg')] bg-cover bg-center" role="img" aria-label="唯遇甜所手作甜點示意圖片" />
+                  <div className="absolute inset-x-5 bottom-5 flex items-center justify-between rounded-lg border border-cream/60 bg-cream/90 px-4 py-3 text-xs tracking-[0.1em] text-cocoa">
+                    <span>甜點示意圖片 · 實際商品以面交時為準</span>
+                    <span className="font-serif text-sm tracking-[0.3em] text-caramel-deep">WEIYU</span>
+                  </div>
                 </div>
-              </div>
+              )}
               {/* 品牌印章 */}
               <div
                 className="absolute -left-3 -top-6 flex h-28 w-28 items-center justify-center rounded-full border border-oat bg-cream shadow-[0_18px_40px_-28px_rgba(84,59,43,0.7)] animate-rise sm:-left-6 sm:h-36 sm:w-36"

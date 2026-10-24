@@ -17,7 +17,11 @@ export async function GET() {
       type: coupons.type,
       value: coupons.value,
       minimumSubtotal: coupons.minimumSubtotal,
+      maxDiscount: coupons.maxDiscount,
       expiresAt: coupons.expiresAt,
+      newMemberOnly: coupons.newMemberOnly,
+      firstOrderOnly: coupons.firstOrderOnly,
+      claimExpiresDays: coupons.claimExpiresDays,
       maxRedemptions: coupons.maxRedemptions,
       redemptionCount: coupons.redemptionCount,
       isActive: coupons.isActive,
@@ -41,10 +45,11 @@ export async function POST(request: Request) {
   const type = asString(body.type, 20);
   const value = asInt(body.value);
   const minimumSubtotal = asInt(body.minimumSubtotal, 0);
+  const maxDiscount = body.maxDiscount == null || body.maxDiscount === "" ? null : asInt(body.maxDiscount);
   const maxRedemptions = body.maxRedemptions == null || body.maxRedemptions === "" ? null : asInt(body.maxRedemptions);
   const expiresAt = new Date(asString(body.expiresAt, 40));
 
-  if (!/^[A-Z0-9_-]{6,32}$/.test(code)) return fail("優惠券代碼需為 6 到 32 個英數字、底線或連字號。");
+  if (!/^[A-Z0-9_-]{5,32}$/.test(code)) return fail("優惠券代碼需為 5 到 32 個英數字、底線或連字號。");
   if (title.length < 2) return fail("請填寫至少 2 個字的優惠券名稱。");
   if (!["fixed", "percent", "points"].includes(type)) return fail("優惠券類型不正確。");
   if (!Number.isInteger(value) || value <= 0 || (type === "percent" && value > 100)) {
@@ -53,6 +58,10 @@ export async function POST(request: Request) {
   if (!Number.isInteger(minimumSubtotal) || minimumSubtotal < 0 || minimumSubtotal > 1_000_000) {
     return fail("最低消費金額不正確。");
   }
+  if (type === "percent" && (!Number.isInteger(maxDiscount) || maxDiscount! < 1 || maxDiscount! > 1_000_000)) {
+    return fail("百分比優惠券必須設定 NT$1 到 NT$1,000,000 的最高折抵金額。");
+  }
+  if (type !== "percent" && maxDiscount !== null) return fail("只有百分比優惠券可以設定最高折抵金額。");
   if (maxRedemptions !== null && (!Number.isInteger(maxRedemptions) || maxRedemptions < 1 || maxRedemptions > 1_000_000)) {
     return fail("兌換上限需為正整數，或留空代表不限量。");
   }
@@ -67,6 +76,7 @@ export async function POST(request: Request) {
         type,
         value,
         minimumSubtotal,
+        maxDiscount,
         expiresAt,
         maxRedemptions,
         createdBy: admin.id,

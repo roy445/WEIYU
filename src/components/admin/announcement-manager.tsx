@@ -10,6 +10,7 @@ type AnnouncementSummary = {
   title: string;
   body: string;
   type: string;
+  displayMode: string;
   sendEmail: boolean;
   publishedAt: string | Date;
   recipientCount: number;
@@ -47,6 +48,7 @@ export function AnnouncementManager({ announcements }: { announcements: Announce
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [type, setType] = useState<"info" | "important" | "promotion">("info");
+  const [displayMode, setDisplayMode] = useState<"inbox" | "marquee" | "pinned">("inbox");
   const [sendEmail, setSendEmail] = useState(true);
   const [pending, setPending] = useState(false);
   const [retryingId, setRetryingId] = useState<number | null>(null);
@@ -62,7 +64,7 @@ export function AnnouncementManager({ announcements }: { announcements: Announce
     setPending(true);
     const result = await apiRequest("/api/admin/announcements", {
       method: "POST",
-      body: JSON.stringify({ title, body, type, sendEmail }),
+      body: JSON.stringify({ title, body, type, displayMode, sendEmail }),
     });
     setPending(false);
     if (!result.ok) {
@@ -75,6 +77,7 @@ export function AnnouncementManager({ announcements }: { announcements: Announce
     setTitle("");
     setBody("");
     setType("info");
+    setDisplayMode("inbox");
     router.refresh();
   };
 
@@ -125,6 +128,14 @@ export function AnnouncementManager({ announcements }: { announcements: Announce
                 <option value="promotion">新品／活動</option>
               </select>
             </label>
+            <label className="block">
+              <span className="field-label">公告呈現位置</span>
+              <select className="field" value={displayMode} onChange={(event) => setDisplayMode(event.target.value as typeof displayMode)}>
+                <option value="inbox">僅站內通知</option>
+                <option value="marquee">首頁跑馬燈</option>
+                <option value="pinned">全站置頂公告</option>
+              </select>
+            </label>
             <label className="flex items-center gap-3 rounded-lg border border-mist/70 px-4 py-3 text-sm text-cocoa">
               <input type="checkbox" checked={sendEmail} onChange={(event) => setSendEmail(event.target.checked)} className="accent-caramel" />
               同時寄送 Email 給會員
@@ -157,6 +168,7 @@ export function AnnouncementManager({ announcements }: { announcements: Announce
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <span className="badge bg-oat-soft text-cocoa">{typeLabels[item.type] ?? typeLabels.info}</span>
+                    <span className="badge ml-2 bg-cream-deep text-cocoa">{item.displayMode === "marquee" ? "首頁跑馬燈" : item.displayMode === "pinned" ? "全站置頂" : "僅站內通知"}</span>
                     <h3 className="mt-2 text-lg">{item.title}</h3>
                     <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-cocoa-soft">{item.body}</p>
                   </div>

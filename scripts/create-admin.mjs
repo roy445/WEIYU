@@ -48,13 +48,13 @@ try {
   const existing = await client.query("select id from users where email = $1", [email]);
   if (existing.rows[0]) {
     await client.query(
-      "update users set password_hash = $1, role = 'admin', name = $2, updated_at = now() where id = $3",
+      "update users set password_hash = $1, role = 'admin', name = $2, email_verified_at = now(), pending_verification_expires_at = null, updated_at = now() where id = $3",
       [passwordHash, name, existing.rows[0].id],
     );
     console.log(`已更新管理員帳號：${email}`);
   } else {
     await client.query(
-      "insert into users (email, name, password_hash, role) values ($1,$2,$3,'admin')",
+      "insert into users (email, name, password_hash, role, email_verified_at) values ($1,$2,$3,'admin',now())",
       [email, name, passwordHash],
     );
     console.log(`已建立管理員帳號：${email}`);

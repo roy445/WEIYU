@@ -4,6 +4,7 @@ import { orderItems, productVariants, products } from "@/db/schema";
 import { isSafeImageUrl, optionalText, parseImageGallery, requireAdmin, slugify } from "@/lib/admin";
 import { asBool, asInt, asString, fail, ok, readJson } from "@/lib/api";
 import { logAdminAction } from "@/lib/orders";
+import { notifyProductTrackersForChange } from "@/lib/product-tracking";
 
 type VariantInput = { name: string; priceDelta: number; stock: number; isActive: boolean };
 
@@ -121,7 +122,16 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       id,
       `更新商品 ${String(patch.name ?? existing.name)}`,
     );
-    return ok({ message: "商品已更新。" });
+    const alert = await notifyProductTrackersForChange(id, {
+      ...(typeof patch.price === "number" && patch.price !== existing.price ? { oldPrice: existing.price, newPrice: patch.price } : {}),
+      ...(typeof patch.stock === "number" && patch.stock !== existing.stock ? { oldStock: existing.stock, newStock: patch.stock } : {}),
+      isActive: typeof patch.isActive === "boolean" ? patch.isActive : existing.isActive,
+    });
+    const notificationWarning = alert.warning ?? (alert.emailFailed > 0 ? `商品已更新，${alert.emailFailed} 封追蹤通知 Email 寄送失敗。` : undefined);
+    return ok({
+      message: notificationWarning ? `商品已更新。${notificationWarning}` : "商品已更新。",
+      notificationWarning,
+    });
   } catch (error) {
     const message = error instanceof Error && error.message.includes("unique") ? "商品網址代稱重複，請更換。" : "更新商品失敗，請再試一次。";
     return fail(message, 409);

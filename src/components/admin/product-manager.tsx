@@ -199,7 +199,7 @@ export function ProductManager({ products, categories, initialFilter }: { produc
       setError(result.data.error ?? "儲存失敗。");
       return;
     }
-    toast(isNew ? "商品已新增。" : "商品已更新。");
+    toast(result.data.message ?? (isNew ? "商品已新增。" : "商品已更新。"), result.data.notificationWarning ? "info" : "success");
     setEditing(null);
     router.refresh();
   };
@@ -212,7 +212,7 @@ export function ProductManager({ products, categories, initialFilter }: { produc
       toast(result.data.error ?? "操作失敗。", "error");
       return;
     }
-    toast(successMessage);
+    toast(result.data.message ?? successMessage, result.data.notificationWarning ? "info" : "success");
     router.refresh();
   };
 

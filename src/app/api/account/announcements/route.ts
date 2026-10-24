@@ -26,6 +26,7 @@ export async function GET(request: Request) {
       title: announcements.title,
       body: announcements.body,
       type: announcements.type,
+      displayMode: announcements.displayMode,
       publishedAt: announcements.publishedAt,
       readAt: announcementNotifications.readAt,
     })

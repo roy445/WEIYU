@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { desc } from "drizzle-orm";
+import { count, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { products } from "@/db/schema";
+import { products, users } from "@/db/schema";
+import { PrintButton } from "@/components/print-button";
 
 export const metadata: Metadata = { title: "商品成效" };
 
 export default async function AdminAnalyticsPage() {
-  const rows = await db
+  const [rows, memberCountRows] = await Promise.all([db
     .select({
       id: products.id,
       name: products.name,
@@ -17,12 +18,16 @@ export default async function AdminAnalyticsPage() {
       cartAddCount: products.cartAddCount,
     })
     .from(products)
-    .orderBy(desc(products.viewCount), desc(products.cartAddCount), products.name);
+    .orderBy(desc(products.viewCount), desc(products.cartAddCount), products.name), db
+    .select({ total: count(users.id).mapWith(Number) })
+    .from(users)
+    .where(eq(users.role, "customer"))]);
+  const memberCount = memberCountRows[0]?.total ?? 0;
   const views = rows.reduce((sum, product) => sum + product.viewCount, 0);
   const additions = rows.reduce((sum, product) => sum + product.cartAddCount, 0);
 
   return (
-    <div className="space-y-8">
+    <div className="printable-report space-y-8">
       <header>
         <p className="eyebrow">Product insights</p>
         <h1 className="mt-3 text-3xl">商品成效</h1>
@@ -31,7 +36,12 @@ export default async function AdminAnalyticsPage() {
         </p>
       </header>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="print-hidden flex flex-wrap gap-2">
+        <a href="/api/admin/reports/analytics" className="btn btn-secondary btn-sm">下載統計 CSV</a>
+        <PrintButton label="列印／另存為 PDF" />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
         <div className="surface rounded-lg p-5">
           <p className="text-sm text-cocoa-soft">商品頁瀏覽次數</p>
           <p className="mt-2 font-serif text-4xl">{views.toLocaleString("zh-TW")}</p>
@@ -39,6 +49,10 @@ export default async function AdminAnalyticsPage() {
         <div className="rounded-lg bg-cocoa p-5 text-cream">
           <p className="text-sm text-oat">加入購物袋次數</p>
           <p className="mt-2 font-serif text-4xl">{additions.toLocaleString("zh-TW")}</p>
+        </div>
+        <div className="surface rounded-lg p-5">
+          <p className="text-sm text-cocoa-soft">會員總數</p>
+          <p className="mt-2 font-serif text-4xl">{memberCount.toLocaleString("zh-TW")}</p>
         </div>
       </div>
 

@@ -8,12 +8,13 @@ export type CouponDisplay = {
   type: string;
   value: number;
   minimumSubtotal: number;
+  maxDiscount?: number | null;
   expiresAt: Date;
 };
 
 export function CouponTicket({ coupon }: { coupon: CouponDisplay }) {
   const benefit = coupon.type === "percent"
-    ? `${coupon.value}% OFF`
+    ? `${coupon.value}% OFF${coupon.maxDiscount ? `（最高折 ${formatPrice(coupon.maxDiscount)}）` : ""}`
     : coupon.type === "points"
       ? `${coupon.value} 甜甜數`
       : `折抵 ${formatPrice(coupon.value)}`;

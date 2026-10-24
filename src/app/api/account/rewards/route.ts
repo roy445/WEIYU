@@ -1,6 +1,6 @@
 import { and, eq, gt, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { coupons, pointLots, userCoupons } from "@/db/schema";
+import { coupons, orders, pointLots, userCoupons } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { asString, clientKey, fail, ok, rateLimit, readJson } from "@/lib/api";
 import { addThreeMonths, getPointsSummary } from "@/lib/rewards";
@@ -20,14 +20,15 @@ export async function GET() {
           type: coupons.type,
           value: coupons.value,
           minimumSubtotal: coupons.minimumSubtotal,
-          expiresAt: coupons.expiresAt,
+          maxDiscount: coupons.maxDiscount,
+          expiresAt: sql<Date>`coalesce(${userCoupons.expiresAt}, ${coupons.expiresAt})`,
         })
         .from(userCoupons)
         .innerJoin(coupons, eq(userCoupons.couponId, coupons.id))
         .where(and(
           eq(userCoupons.userId, user.id),
           eq(userCoupons.status, "available"),
-          gt(coupons.expiresAt, new Date()),
+          gt(sql<Date>`coalesce(${userCoupons.expiresAt}, ${coupons.expiresAt})`, new Date()),
         ))
         .orderBy(coupons.expiresAt),
       getPointsSummary(user.id),
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
 
   const body = await readJson(request);
   const code = asString(body.code, 32).toUpperCase();
-  if (!/^[A-Z0-9_-]{6,32}$/.test(code)) return fail("優惠券代碼格式不正確。");
+  if (!/^[A-Z0-9_-]{5,32}$/.test(code)) return fail("優惠券代碼格式不正確。");
 
   try {
     const message = await db.transaction(async (tx) => {
@@ -58,13 +59,29 @@ export async function POST(request: Request) {
       if (!coupon || !coupon.isActive || coupon.expiresAt <= now) {
         return { error: "優惠券不存在、已停用或已到期。" };
       }
+      if (coupon.newMemberOnly && user.createdAt < coupon.createdAt) {
+        return { error: "這組優惠券僅提供活動開始後註冊的新會員。" };
+      }
+      if (coupon.firstOrderOnly) {
+        const completedOrders = await tx
+          .select({ id: orders.id })
+          .from(orders)
+          .where(and(eq(orders.userId, user.id), sql`${orders.status} <> 'cancelled'`))
+          .limit(1);
+        if (completedOrders.length) return { error: "此優惠券限尚未建立過其他訂單的新會員使用。" };
+      }
       if (coupon.maxRedemptions !== null && coupon.redemptionCount >= coupon.maxRedemptions) {
         return { error: "此優惠券已兌換完畢。" };
       }
 
       const claimed = await tx
         .insert(userCoupons)
-        .values({ userId: user.id, couponId: coupon.id, status: coupon.type === "points" ? "redeemed" : "available" })
+        .values({
+          userId: user.id,
+          couponId: coupon.id,
+          status: coupon.type === "points" ? "redeemed" : "available",
+          expiresAt: coupon.claimExpiresDays ? new Date(now.getTime() + coupon.claimExpiresDays * 24 * 60 * 60 * 1000) : null,
+        })
         .onConflictDoNothing()
         .returning({ id: userCoupons.id });
       if (!claimed[0]) return { error: "你已領取或使用過這組優惠券代碼。" };

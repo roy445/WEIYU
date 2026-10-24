@@ -13,6 +13,7 @@ export default async function AdminAnnouncementsPage() {
       title: announcements.title,
       body: announcements.body,
       type: announcements.type,
+      displayMode: announcements.displayMode,
       sendEmail: announcements.sendEmail,
       publishedAt: announcements.publishedAt,
       recipientCount: sql<number>`count(${announcementNotifications.userId})::int`,

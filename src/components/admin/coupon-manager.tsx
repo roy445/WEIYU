@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { formatDateTime, formatPrice } from "@/lib/brand";
 import { useStore } from "@/components/store-provider";
 import { apiRequest } from "./dialog";
+import { RewardGiftForm } from "./reward-gift-form";
 
 type CouponRow = {
   id: number;
@@ -12,7 +13,11 @@ type CouponRow = {
   type: "fixed" | "percent" | "points";
   value: number;
   minimumSubtotal: number;
+  maxDiscount: number | null;
   expiresAt: string;
+  newMemberOnly: boolean;
+  firstOrderOnly: boolean;
+  claimExpiresDays: number | null;
   maxRedemptions: number | null;
   redemptionCount: number;
   isActive: boolean;
@@ -70,6 +75,7 @@ export function CouponManager() {
         type,
         value: Number(formData.get("value")),
         minimumSubtotal: Number(formData.get("minimumSubtotal") || 0),
+        maxDiscount: type === "percent" ? Number(formData.get("maxDiscount")) : null,
         maxRedemptions: maxValue ? Number(maxValue) : null,
         expiresAt: new Date(expiry).toISOString(),
       }),
@@ -99,13 +105,14 @@ export function CouponManager() {
   };
 
   return (
-    <div className="grid gap-8 xl:grid-cols-[0.8fr_1.2fr]">
+    <div className="space-y-8">
+      <div className="grid gap-8 xl:grid-cols-[0.8fr_1.2fr]">
       <form onSubmit={create} className="surface h-fit space-y-4 rounded-xl p-5 sm:p-7">
         <div>
           <p className="eyebrow">Create coupon</p>
           <h2 className="mt-2 text-2xl">新增優惠券</h2>
         </div>
-        <label className="block"><span className="field-label">優惠券代碼</span><input name="code" className="field uppercase" minLength={6} maxLength={32} pattern="[A-Za-z0-9_-]{6,32}" required placeholder="例如 SWEET2026" /></label>
+        <label className="block"><span className="field-label">優惠券代碼</span><input name="code" className="field uppercase" minLength={5} maxLength={32} pattern="[A-Za-z0-9_-]{5,32}" required placeholder="例如 SWEET2026" /></label>
         <label className="block"><span className="field-label">券面名稱</span><input name="title" className="field" maxLength={80} minLength={2} required placeholder="例如 新會員甜點折價券" /></label>
         <label className="block">
           <span className="field-label">優惠類型</span>
@@ -115,11 +122,12 @@ export function CouponManager() {
         </label>
         <label className="block"><span className="field-label">{type === "fixed" ? "折抵金額（元）" : type === "percent" ? "折扣百分比（1–100）" : "贈送甜甜數"}</span><input name="value" className="field" type="number" min="1" max={type === "percent" ? 100 : 1000000} step="1" required /></label>
         {type !== "points" ? <label className="block"><span className="field-label">最低消費金額（元）</span><input name="minimumSubtotal" className="field" type="number" min="0" step="1" defaultValue="0" /></label> : null}
+        {type === "percent" ? <label className="block"><span className="field-label">最高折抵金額（元）</span><input name="maxDiscount" className="field" type="number" min="1" max="1000000" step="1" required placeholder="例如 200" /><span className="mt-1 block text-xs text-cocoa-soft">折扣會取百分比計算金額與此上限中的較低值。</span></label> : null}
         <label className="block"><span className="field-label">優惠券到期時間（由店家設定）</span><input className="field" type="datetime-local" value={expiry} onChange={(event) => setExpiry(event.target.value)} required /></label>
         <label className="block"><span className="field-label">可領取總數（留空不限量）</span><input name="maxRedemptions" className="field" type="number" min="1" step="1" placeholder="不限量" /></label>
         {error ? <p role="alert" className="text-sm text-[#8A4B3D]">{error}</p> : null}
         <button type="submit" className="btn btn-primary w-full" disabled={pending}>{pending ? "建立中…" : "建立優惠券"}</button>
-        <p className="text-xs leading-relaxed text-cocoa-soft">百分比折扣依訂單小計計算，折扣金額無條件捨去至整數元。顧客每筆訂單可使用一張優惠券，並可另外使用甜甜數。</p>
+        <p className="text-xs leading-relaxed text-cocoa-soft">百分比折扣依訂單小計計算後無條件捨去至整數元，再套用最高折抵金額。顧客每筆訂單可使用一張優惠券，並可另外使用甜甜數。</p>
       </form>
 
       <section>
@@ -132,13 +140,14 @@ export function CouponManager() {
             {items.map((coupon) => (
               <li key={coupon.id} className="surface flex flex-col gap-3 rounded-xl p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <p className="font-medium">{coupon.title} <span className="ml-2 font-mono text-xs text-caramel-deep">{coupon.code}</span></p>
+                  <p className="font-medium">{coupon.title} <span className="ml-2 font-mono text-xs text-caramel-deep">{coupon.code}</span>{coupon.newMemberOnly ? " · 新會員限定" : ""}{coupon.firstOrderOnly ? " · 首購限定" : ""}</p>
                   <p className="mt-1 text-xs text-cocoa-soft">
-                    {coupon.type === "fixed" ? `折 ${formatPrice(coupon.value)}` : coupon.type === "percent" ? `${coupon.value}% 折扣` : `${coupon.value} 點`}
+                    {coupon.type === "fixed" ? `折 ${formatPrice(coupon.value)}` : coupon.type === "percent" ? `${coupon.value}% 折扣，最高折 ${formatPrice(coupon.maxDiscount ?? 1_000_000)}` : `${coupon.value} 點`}
                     {coupon.minimumSubtotal > 0 ? ` · 滿 ${formatPrice(coupon.minimumSubtotal)} 可用` : ""}
                     {" · "}已領取 {coupon.claimedCount}{coupon.maxRedemptions == null ? " 張" : ` / ${coupon.maxRedemptions} 張`}
                   </p>
                   <p className="mt-1 text-xs text-cocoa-soft">到期 {formatDateTime(new Date(coupon.expiresAt))}</p>
+                  {coupon.claimExpiresDays ? <p className="mt-1 text-xs text-cocoa-soft">領取後 {coupon.claimExpiresDays} 天到期</p> : null}
                 </div>
                 <button type="button" className={`btn btn-sm ${coupon.isActive ? "btn-secondary" : "btn-primary"}`} onClick={() => void toggle(coupon)}>
                   {coupon.isActive ? "停用" : "重新啟用"}
@@ -148,6 +157,8 @@ export function CouponManager() {
           </ul>
         ) : <p className="surface mt-4 rounded-xl px-5 py-10 text-center text-sm text-cocoa-soft">尚未建立優惠券。</p>}
       </section>
+      </div>
+      <RewardGiftForm coupons={items} />
     </div>
   );
 }

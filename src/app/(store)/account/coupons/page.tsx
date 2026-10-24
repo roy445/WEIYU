@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { and, asc, eq, gt } from "drizzle-orm";
+import { and, asc, eq, gt, sql } from "drizzle-orm";
 import { CouponCenter } from "@/components/coupon-center";
 import { db } from "@/db";
 import { coupons, userCoupons } from "@/db/schema";
@@ -25,16 +25,17 @@ export default async function CouponsPage() {
         type: coupons.type,
         value: coupons.value,
         minimumSubtotal: coupons.minimumSubtotal,
-        expiresAt: coupons.expiresAt,
+        maxDiscount: coupons.maxDiscount,
+        expiresAt: sql<Date>`coalesce(${userCoupons.expiresAt}, ${coupons.expiresAt})`,
       })
       .from(userCoupons)
       .innerJoin(coupons, eq(userCoupons.couponId, coupons.id))
       .where(and(
         eq(userCoupons.userId, user.id),
         eq(userCoupons.status, "available"),
-        gt(coupons.expiresAt, new Date()),
+        gt(sql<Date>`coalesce(${userCoupons.expiresAt}, ${coupons.expiresAt})`, new Date()),
       ))
-      .orderBy(asc(coupons.expiresAt)),
+      .orderBy(asc(sql<Date>`coalesce(${userCoupons.expiresAt}, ${coupons.expiresAt})`)),
     getPointsSummary(user.id),
   ]);
 

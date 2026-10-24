@@ -67,7 +67,7 @@ export function CouponCenter({ items, points: initialPoints }: Props) {
             <ul className="mt-4 space-y-2 border-t border-mist/60 pt-3 text-xs text-cocoa-soft">
               {initialPoints.lots.map((lot) => (
                 <li key={lot.id} className="flex justify-between gap-3">
-                  <span>{lot.source === "coupon" ? "優惠券取得" : "消費回饋"} · {lot.remaining} 甜甜數</span>
+                  <span>{lot.source === "coupon" ? "優惠券取得" : lot.source === "gift" ? "店家贈送" : "消費回饋"} · {lot.remaining} 甜甜數</span>
                   <span>到期 {formatDate(lot.expiresAt)}</span>
                 </li>
               ))}

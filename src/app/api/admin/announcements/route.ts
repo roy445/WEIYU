@@ -6,6 +6,7 @@ import { sendPendingAnnouncementEmails } from "@/lib/announcements";
 import { asString, fail, ok, readJson } from "@/lib/api";
 
 const TYPES = new Set(["info", "important", "promotion"]);
+const DISPLAY_MODES = new Set(["inbox", "marquee", "pinned"]);
 
 export async function GET() {
   const admin = await requireAdmin();
@@ -17,6 +18,7 @@ export async function GET() {
       title: announcements.title,
       body: announcements.body,
       type: announcements.type,
+      displayMode: announcements.displayMode,
       sendEmail: announcements.sendEmail,
       publishedAt: announcements.publishedAt,
       recipientCount: sql<number>`count(${announcementNotifications.userId})::int`,
@@ -39,18 +41,20 @@ export async function POST(request: Request) {
   const title = asString(body.title, 100);
   const announcementBody = asString(body.body, 3000);
   const type = asString(body.type, 20);
+  const displayMode = asString(body.displayMode, 20);
   const sendEmail = typeof body.sendEmail === "boolean" ? body.sendEmail : true;
 
   if (title.length < 2) return fail("公告標題至少需要 2 個字。");
   if (!announcementBody) return fail("請填寫公告內容。");
   if (!TYPES.has(type)) return fail("公告類型不正確。");
+  if (!DISPLAY_MODES.has(displayMode)) return fail("公告呈現方式不正確。");
 
   let result: { id: number; recipientCount: number };
   try {
     result = await db.transaction(async (tx) => {
       const [announcement] = await tx
         .insert(announcements)
-        .values({ title, body: announcementBody, type, sendEmail, createdBy: admin.id })
+        .values({ title, body: announcementBody, type, displayMode, sendEmail, createdBy: admin.id })
         .returning({ id: announcements.id });
 
       const recipients = await tx

@@ -2,17 +2,19 @@ import "server-only";
 
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
-import { and, eq, gt, ne } from "drizzle-orm";
+import { and, eq, gt, isNotNull, isNull, lte, ne } from "drizzle-orm";
 import { db } from "@/db";
-import { passwordResetTokens, sessions, users } from "@/db/schema";
+import { emailVerificationTokens, passwordResetTokens, sessions, users } from "@/db/schema";
 
 export const SESSION_COOKIE = "weiyu_session";
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+export const EMAIL_VERIFICATION_TTL_MS = 60 * 60 * 1000;
 
 export type SessionUser = {
   id: number;
   name: string;
   email: string;
+  createdAt: Date;
   phone: string | null;
   role: "customer" | "admin";
   theme: "light" | "dark";
@@ -36,6 +38,25 @@ export async function createPasswordResetToken(userId: number): Promise<string> 
     expiresAt: new Date(Date.now() + 30 * 60 * 1000),
   });
   return token;
+}
+
+export async function createEmailVerificationToken(userId: number, expiresAt: Date): Promise<string> {
+  const token = randomBytes(32).toString("base64url");
+  const tokenHash = createHash("sha256").update(token).digest("hex");
+  await db.delete(emailVerificationTokens).where(eq(emailVerificationTokens.userId, userId));
+  await db.insert(emailVerificationTokens).values({ id: tokenHash, userId, expiresAt });
+  return token;
+}
+
+export async function deleteExpiredPendingRegistrations(): Promise<number> {
+  const deleted = await db
+    .delete(users)
+    .where(and(
+      isNull(users.emailVerifiedAt),
+      lte(users.pendingVerificationExpiresAt, new Date()),
+    ))
+    .returning({ id: users.id });
+  return deleted.length;
 }
 
 export async function consumePasswordResetToken(token: string): Promise<number | null> {
@@ -115,6 +136,7 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
         id: users.id,
         name: users.name,
         email: users.email,
+        createdAt: users.createdAt,
         phone: users.phone,
         role: users.role,
         theme: users.theme,
@@ -123,7 +145,11 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
       })
       .from(sessions)
       .innerJoin(users, eq(sessions.userId, users.id))
-      .where(and(eq(sessions.id, hashToken(token)), gt(sessions.expiresAt, new Date())))
+      .where(and(
+        eq(sessions.id, hashToken(token)),
+        gt(sessions.expiresAt, new Date()),
+        isNotNull(users.emailVerifiedAt),
+      ))
       .limit(1);
     const row = rows[0];
     if (!row) return null;
@@ -131,6 +157,7 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
       id: row.id,
       name: row.name,
       email: row.email,
+      createdAt: row.createdAt,
       phone: row.phone,
       role: row.role === "admin" ? "admin" : "customer",
       theme: row.theme === "dark" ? "dark" : "light",

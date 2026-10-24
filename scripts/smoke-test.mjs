@@ -13,6 +13,7 @@
  *  8. 管理員可新增／編輯商品與面交設定
  */
 import "dotenv/config";
+import { createHash, randomBytes } from "node:crypto";
 import { Client } from "pg";
 
 const BASE = (process.env.BASE_URL || "http://localhost:3000").replace(/\/$/, "");
@@ -71,7 +72,7 @@ async function main() {
   const stamp = Date.now();
 
   // 1. 頁面
-  for (const path of ["/", "/products", "/products?q=可麗露&sort=price_asc", "/desserts", "/ordering", "/pickup", "/faq", "/privacy", "/terms", "/login", "/register", "/forgot-password", "/reset-password", "/products/canele", "/checkout"]) {
+  for (const path of ["/", "/products", "/products?q=可麗露&sort=price_asc", "/desserts", "/ordering", "/pickup", "/faq", "/privacy", "/terms", "/login", "/register", "/resend-activation", "/activate-account", "/forgot-password", "/reset-password", "/products/canele", "/checkout"]) {
     const res = await fetch(`${BASE}${path}`);
     const html = await res.text();
     assert(`GET ${path} 200`, res.status === 200, `status ${res.status}`);
@@ -92,7 +93,12 @@ async function main() {
 
   // 2. 會員註冊／登入
   const customer = cookieJar();
-  const email = `tester+${stamp}@example.com`;
+  const testMailbox = process.env.SMOKE_TEST_EMAIL;
+  if (!testMailbox || !testMailbox.includes("@")) {
+    throw new Error("請設定 SMOKE_TEST_EMAIL 為可收信且支援 plus alias 的測試信箱。");
+  }
+  const [mailboxName, mailboxDomain] = testMailbox.toLowerCase().split("@");
+  const email = `${mailboxName}+smoke-${stamp}@${mailboxDomain}`;
   let res = await call(customer, "/api/auth/register", {
     method: "POST",
     body: JSON.stringify({
@@ -105,6 +111,17 @@ async function main() {
     }),
   });
   assert("註冊成功", res.status === 201 && res.data.ok, JSON.stringify(res.data));
+  res = await call(cookieJar(), "/api/auth/login", { method: "POST", body: JSON.stringify({ email, password: "Tester1234" }) });
+  assert("啟用前禁止登入", res.status === 403);
+  const newUser = (await db.query("select id, pending_verification_expires_at from users where email = $1", [email])).rows[0];
+  const activationToken = randomBytes(32).toString("base64url");
+  const activationHash = createHash("sha256").update(activationToken).digest("hex");
+  await db.query(
+    "insert into email_verification_tokens (id, user_id, expires_at) values ($1, $2, $3) on conflict (user_id) do update set id = excluded.id, expires_at = excluded.expires_at",
+    [activationHash, newUser.id, newUser.pending_verification_expires_at],
+  );
+  res = await call(customer, "/api/auth/activate", { method: "POST", body: JSON.stringify({ token: activationToken }) });
+  assert("Email 啟用成功", res.status === 200 && res.data.ok, JSON.stringify(res.data));
   res = await call(cookieJar(), "/api/auth/register", {
     method: "POST",
     body: JSON.stringify({ name: "未同意會員", email: `no-consent+${stamp}@example.com`, password: "Tester1234", passwordConfirm: "Tester1234" }),
