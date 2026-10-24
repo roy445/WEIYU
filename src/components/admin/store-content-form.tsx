@@ -68,10 +68,12 @@ export function StoreContentForm({ settings }: { settings: ShopSettings }) {
       <section className="surface rounded-xl p-5 sm:p-7">
         <p className="eyebrow">02 · Help center</p>
         <h2 className="mt-2 text-2xl">常見問題</h2>
-        <p className="mt-2 text-sm text-cocoa-soft">每行輸入一組，使用「問題 | 答案」分隔；空白行會忽略。</p>
+        <p className="mt-2 text-sm leading-relaxed text-cocoa-soft">
+          每行輸入一組，使用「問題 | 答案」分隔；空白行會忽略。前台已有訂購、付款、面交、商品資訊、帳號及通知等基本解答，可在這裡補上店家專屬資訊，例如實際聯絡時間、特殊節日安排與商品保存提醒。
+        </p>
         <textarea
           className="field mt-5 min-h-44"
-          placeholder={"可以宅配嗎？ | 目前只提供面交取貨。\n如何取消訂單？ | 請透過頁尾聯絡方式與店家聯繫。"}
+          placeholder={"面交前需要準備什麼？ | 請依訂單確認信中的地點與時段準時前往，如需更改請先聯繫店家。\n甜點如何保存？ | 請依商品頁與取貨時提供的保存方式及賞味期限為準。"}
           {...bind("faqText")}
         />
         <a href="/faq" target="_blank" rel="noreferrer" className="mt-3 inline-block text-xs text-caramel-deep underline underline-offset-4">預覽前台常見問題 →</a>

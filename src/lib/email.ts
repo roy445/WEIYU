@@ -46,8 +46,12 @@ function getEmailConfig() {
 function isTransientDnsError(error: unknown): boolean {
   let current: unknown = error;
   for (let depth = 0; depth < 4 && current && typeof current === "object"; depth += 1) {
-    const candidate = current as { code?: unknown; syscall?: unknown; cause?: unknown };
-    if (candidate.syscall === "getaddrinfo" && (candidate.code === "EBUSY" || candidate.code === "EAI_AGAIN")) {
+    const candidate = current as { code?: unknown; syscall?: unknown; cause?: unknown; message?: unknown };
+    const message = typeof candidate.message === "string" ? candidate.message : "";
+    if (
+      (candidate.syscall === "getaddrinfo" && (candidate.code === "EBUSY" || candidate.code === "EAI_AGAIN"))
+      || /getaddrinfo\s+(?:EBUSY|EAI_AGAIN)\b/i.test(message)
+    ) {
       return true;
     }
     current = candidate.cause;
@@ -56,19 +60,20 @@ function isTransientDnsError(error: unknown): boolean {
 }
 
 async function sendMailWithRetry(transportOptions: ReturnType<typeof getEmailConfig>["transportOptions"], options: SendMailOptions): Promise<void> {
-  for (let attempt = 0; attempt < 3; attempt += 1) {
+  const retryDelays = [400, 800, 1_200];
+  for (let attempt = 0; attempt <= retryDelays.length; attempt += 1) {
     const transport = nodemailer.createTransport(transportOptions);
     let retry = false;
     try {
       await transport.sendMail(options);
       return;
     } catch (error) {
-      if (!isTransientDnsError(error) || attempt === 2) throw error;
+      if (!isTransientDnsError(error) || attempt === retryDelays.length) throw error;
       retry = true;
     } finally {
       transport.close();
     }
-    if (retry) await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+    if (retry) await new Promise((resolve) => setTimeout(resolve, retryDelays[attempt]));
   }
 }
 

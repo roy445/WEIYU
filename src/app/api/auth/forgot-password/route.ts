@@ -24,7 +24,11 @@ export async function POST(request: Request) {
     }
     return ok({ message: "若此 Email 已註冊，重設密碼連結將寄送到該信箱，連結有效 30 分鐘。" });
   } catch (error) {
-    console.error("Password reset email failed", error instanceof Error ? error.message : "unknown");
+    console.error("Password reset email failed", {
+      message: error instanceof Error ? error.message : "unknown",
+      code: error && typeof error === "object" && "code" in error ? error.code : undefined,
+      syscall: error && typeof error === "object" && "syscall" in error ? error.syscall : undefined,
+    });
     return fail("目前無法寄送重設密碼信件，請稍後再試或聯繫店家協助。", 503);
   }
 }

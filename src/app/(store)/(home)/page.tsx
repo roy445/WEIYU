@@ -28,6 +28,10 @@ const faqs = [
     q: "可以指定面交地點與時間嗎？",
     a: "面交地點與時段由我在後台開放，結帳時只能從目前開放的選項中選擇。若尚未開放，結帳頁會清楚提示。",
   },
+  { q: "如何查看訂單進度？", a: "登入後前往會員中心的訂單列表，點開訂單即可查看狀態、商品明細與面交安排。" },
+  { q: "可以更改或取消訂單嗎？", a: "請儘早透過頁尾聯絡方式提供訂單編號聯繫店家。能否調整須依商品製作及面交進度確認，請以店家回覆為準。" },
+  { q: "商品成分、過敏原和保存方式在哪裡看？", a: "請查看各商品頁的成分、過敏原及保存資訊。如有嚴重過敏或資訊不完整，請在下單前先向店家確認。" },
+  { q: "忘記密碼或沒收到通知 Email 怎麼辦？", a: "登入頁有「忘記密碼」功能，重設連結有效 30 分鐘。若信件未到，請檢查垃圾郵件；訂單進度仍可在會員中心查看，持續有問題請用頁尾聯絡方式洽詢。" },
 ];
 
 export default async function HomePage() {
@@ -305,9 +309,13 @@ export default async function HomePage() {
               常見問題
             </h2>
             <p className="mt-4 text-sm leading-relaxed text-cocoa-soft">
-              更多細節請見
+              查看更多訂單、帳號、商品保存與通知說明：
               <Link href="/ordering" className="mx-1 underline decoration-mist underline-offset-4 hover:text-caramel-deep">
                 訂購須知
+              </Link>
+              與
+              <Link href="/faq" className="mx-1 underline decoration-mist underline-offset-4 hover:text-caramel-deep">
+                完整常見問題
               </Link>
               。
             </p>
