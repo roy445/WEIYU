@@ -69,7 +69,9 @@ export function AnnouncementManager({ announcements }: { announcements: Announce
       toast(result.data.error ?? "公告發布失敗。", "error");
       return;
     }
-    toast(result.data.message ?? "公告已發布。", result.data.emailFailed ? "error" : "success");
+    const emailSent = Number(result.data.emailSent ?? 0);
+    const emailReminder = emailSent > 0 ? " 若會員未收到，請提醒查看垃圾郵件。" : "";
+    toast(`${result.data.message ?? "公告已發布。"}${emailReminder}`, result.data.emailFailed ? "error" : "success");
     setTitle("");
     setBody("");
     setType("info");
@@ -84,7 +86,9 @@ export function AnnouncementManager({ announcements }: { announcements: Announce
       toast(result.data.error ?? "Email 重試失敗。", "error");
       return;
     }
-    toast(result.data.message ?? "Email 重試完成。", result.data.failed ? "error" : "success");
+    const emailSent = Number(result.data.sent ?? 0);
+    const emailReminder = emailSent > 0 ? " 若會員未收到，請提醒查看垃圾郵件。" : "";
+    toast(`${result.data.message ?? "Email 重試完成。"}${emailReminder}`, result.data.failed ? "error" : "success");
     router.refresh();
   };
 

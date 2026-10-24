@@ -54,7 +54,7 @@ export function ProductCard({ product, index = 0 }: { product: ProductCardData; 
     >
       <Link
         href={`/products/${product.slug}`}
-        className="relative block aspect-[4/3] overflow-hidden bg-oat-soft"
+        className="relative block aspect-square overflow-hidden bg-oat-soft sm:aspect-[4/3]"
         aria-label={`查看 ${product.name} 商品詳情`}
       >
         <SafeImage
@@ -77,34 +77,34 @@ export function ProductCard({ product, index = 0 }: { product: ProductCardData; 
         <FavoriteButton productId={product.id} slug={product.slug} compact />
       </div>
 
-      <div className="flex flex-1 flex-col p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div>
+      <div className="flex flex-1 flex-col p-3 sm:p-5">
+        <div className="flex flex-col items-start gap-1 sm:flex-row sm:justify-between sm:gap-3">
+          <div className="min-w-0">
             {product.categoryName ? (
               <p className="text-[0.68rem] tracking-[0.18em] text-caramel-deep">{product.categoryName}</p>
             ) : null}
-            <h3 className="mt-1.5 text-lg leading-snug">
+            <h3 className="mt-1.5 text-base leading-snug sm:text-lg">
               <Link href={`/products/${product.slug}`} className="hover:text-caramel-deep">
                 {product.name}
               </Link>
             </h3>
           </div>
-          <p className="shrink-0 font-serif text-lg text-cocoa">{formatPrice(product.price)}</p>
+          <p className="shrink-0 font-serif text-base text-cocoa sm:text-lg">{formatPrice(product.price)}</p>
         </div>
-        <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-cocoa-soft">{product.summary}</p>
+        <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-cocoa-soft sm:text-sm">{product.summary}</p>
         <div className="mt-auto flex items-center gap-2 pt-4">
           <button
             type="button"
             onClick={handleAdd}
             disabled={soldOut || !product.isActive}
-            className="btn btn-secondary btn-sm flex-1"
+            className="btn btn-secondary btn-sm min-w-0 flex-1 px-2 text-[0.68rem] sm:px-3 sm:text-xs"
             aria-label={`將 ${product.name} 加入購物袋`}
           >
             {soldOut ? "補貨中" : !product.isActive ? "暫停販售" : "加入購物袋"}
           </button>
           <Link
             href={`/products/${product.slug}`}
-            className="btn btn-sm border-transparent px-3 text-cocoa-soft hover:text-caramel-deep"
+            className="btn btn-sm shrink-0 border-transparent px-1.5 text-[0.68rem] text-cocoa-soft hover:text-caramel-deep sm:px-3 sm:text-xs"
             aria-label={`${product.name} 詳細資訊`}
           >
             詳情

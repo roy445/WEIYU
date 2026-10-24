@@ -20,7 +20,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   try {
     if (action === "resend_email") {
       await sendOrderEmail(id, "status");
-      return ok({ message: "訂單通知 Email 已寄出。", emailSent: true });
+      return ok({ message: "訂單通知 Email 已寄出。若收件者未收到，請提醒查看垃圾郵件。", emailSent: true });
     }
     const result = await applyAdminOrderAction(
       admin,
@@ -31,7 +31,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     if (action !== "note") {
       try {
         await sendOrderEmail(id, "status");
-        return ok({ message: "訂單已更新，通知 Email 已寄出。", emailSent: true, ...result });
+        return ok({ message: "訂單已更新，通知 Email 已寄出。若收件者未收到，請提醒查看垃圾郵件。", emailSent: true, ...result });
       } catch (emailError) {
         console.error("Order status email failed", emailError instanceof Error ? emailError.message : "unknown");
         return ok({ message: "訂單狀態已更新，但 Email 寄送失敗；可確認 SMTP 設定後手動重寄。", emailSent: false, ...result });

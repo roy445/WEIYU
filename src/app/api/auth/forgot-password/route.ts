@@ -22,7 +22,7 @@ export async function POST(request: Request) {
       const token = await createPasswordResetToken(user.id);
       await sendPasswordResetEmail(user.email, token);
     }
-    return ok({ message: "若此 Email 已註冊，重設密碼連結將寄送到該信箱，連結有效 30 分鐘。" });
+    return ok({ message: "若此 Email 已註冊，重設密碼連結已寄送至該信箱，連結有效 30 分鐘。若收件匣沒有看到，請檢查垃圾郵件。" });
   } catch (error) {
     console.error("Password reset email failed", {
       message: error instanceof Error ? error.message : "unknown",

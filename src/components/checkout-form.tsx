@@ -97,7 +97,7 @@ export function CheckoutForm({ user, slots, acceptingOrders }: Props) {
           clientRequestId: requestId.current,
         }),
       });
-      const data = (await response.json()) as { ok?: boolean; error?: string; orderId?: number; orderNo?: string; notificationWarning?: string };
+      const data = (await response.json()) as { ok?: boolean; error?: string; orderId?: number; orderNo?: string; notificationSent?: boolean; notificationWarning?: string };
       if (!response.ok || !data.ok || !data.orderId) {
         setError(data.error ?? "訂單送出失敗，請稍後再試。");
         toast(data.error ?? "訂單送出失敗。", "error");
@@ -106,7 +106,8 @@ export function CheckoutForm({ user, slots, acceptingOrders }: Props) {
       }
       clearCart();
       toast(data.notificationWarning ?? `訂單 ${data.orderNo} 已送出，我會盡快確認。`, data.notificationWarning ? "info" : "success");
-      router.push(`/account/orders/${data.orderId}?placed=1`);
+      const notification = data.notificationSent === true ? "sent" : data.notificationSent === false ? "failed" : "unknown";
+      router.push(`/account/orders/${data.orderId}?placed=1&notification=${notification}`);
       router.refresh();
     } catch {
       setError("網路或伺服器發生問題，訂單尚未送出，請稍後再試。");

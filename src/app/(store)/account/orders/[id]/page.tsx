@@ -12,7 +12,7 @@ import { formatDate, formatDateTime, formatPrice } from "@/lib/brand";
 export const metadata: Metadata = { title: "訂單明細" };
 export const dynamic = "force-dynamic";
 
-type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ placed?: string }> };
+type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ placed?: string; notification?: string }> };
 
 const timeline = [
   { key: "pending_confirmation", label: "待店家確認" },
@@ -23,7 +23,7 @@ const timeline = [
 export default async function OrderDetailPage({ params, searchParams }: Props) {
   const user = await getCurrentUser();
   const { id: rawId } = await params;
-  const { placed } = await searchParams;
+  const { placed, notification } = await searchParams;
   if (!user) redirect(`/login?next=/account/orders/${rawId}`);
 
   const id = Number(rawId);
@@ -56,7 +56,13 @@ export default async function OrderDetailPage({ params, searchParams }: Props) {
               <a href="#order-details" className="btn btn-primary btn-sm">查看訂單明細</a>
               <Link href="/products" className="btn btn-secondary btn-sm">繼續逛甜點</Link>
             </div>
-            <p className="mt-4 text-xs leading-relaxed">你也可以隨時從會員中心查看訂單進度。</p>
+            <p className="mt-4 text-xs leading-relaxed">
+              {notification === "sent"
+                ? "訂單通知已寄至會員 Email。若收件匣沒有看到，請檢查垃圾郵件；你也可以隨時從會員中心查看訂單進度。"
+                : notification === "failed"
+                  ? "此次通知信未能寄出，但訂單已成立。你可以隨時從會員中心查看訂單進度，或透過頁尾聯絡方式聯繫店家。"
+                  : "你可以隨時從會員中心查看訂單進度。"}
+            </p>
           </div>
         </section>
       ) : null}

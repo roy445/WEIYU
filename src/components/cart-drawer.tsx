@@ -159,7 +159,7 @@ export function CartDrawer() {
               ))}
             </ul>
 
-            <div className="border-t border-mist bg-cream-deep/60 px-5 py-4">
+            <div className="border-t border-mist bg-cream-deep/60 px-5 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-cocoa-soft">小計</span>
                 <span className="font-serif text-xl text-cocoa">{formatPrice(subtotal)}</span>

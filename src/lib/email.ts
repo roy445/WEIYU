@@ -86,7 +86,7 @@ function brandedEmail(title: string, body: string, siteUrl: string, logoUrl: str
 <html lang="zh-Hant"><body style="margin:0;background:#fbf7f0;color:#543b2b;font-family:Arial,'Microsoft JhengHei',sans-serif">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#fbf7f0;padding:32px 12px">
 <tr><td align="center"><table role="presentation" width="560" cellspacing="0" cellpadding="0" style="max-width:560px;width:100%;background:#fffdf8;border:1px solid #e7d8c3;border-radius:16px">
-<tr><td align="center" style="padding:32px 24px 18px"><img src="${escapeHtml(logoUrl)}" width="68" height="68" alt="${escapeHtml(brandNameEn)} ${escapeHtml(shopName)}" style="display:block;width:68px;height:68px"><p style="margin:12px 0 0;color:#8a5c36;font-size:12px;letter-spacing:5px">${escapeHtml(brandNameEn)} ${escapeHtml(shopName)}</p></td></tr>
+<tr><td align="center" style="padding:32px 24px 18px"><img src="${escapeHtml(logoUrl)}" width="128" height="128" alt="${escapeHtml(brandNameEn)} ${escapeHtml(shopName)}" style="display:block;width:128px;height:128px;object-fit:contain;border:0;outline:none;text-decoration:none"><p style="margin:12px 0 0;color:#8a5c36;font-size:12px;letter-spacing:5px">${escapeHtml(brandNameEn)} ${escapeHtml(shopName)}</p></td></tr>
 <tr><td style="padding:8px 32px 36px"><h1 style="margin:0 0 18px;font-family:Georgia,serif;font-size:26px;font-weight:500;color:#543b2b">${escapeHtml(title)}</h1>${body}<p style="margin:30px 0 0;border-top:1px solid #e7d8c3;padding-top:18px;color:#6f5545;font-size:12px;line-height:1.8">此郵件由 WEIYU 唯遇甜所自動寄出。若有疑問，請透過網站聯絡方式與我們聯繫。</p></td></tr>
 </table></td></tr></table></body></html>`;
 }
@@ -96,7 +96,7 @@ export async function sendBrandedEmail(to: string, subject: string, title: strin
   const settings = await getShopSettings();
   const logoUrl = settings.logoUrl
     ? new URL(settings.logoUrl, `${config.siteUrl}/`).toString()
-    : `${config.siteUrl}/brand/weiyu-logo.svg`;
+    : `${config.siteUrl}/brand/logo.png`;
   await sendMailWithRetry(config.transportOptions, {
     from: config.from,
     to,

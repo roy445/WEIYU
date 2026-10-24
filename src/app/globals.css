@@ -172,6 +172,16 @@
     min-height: 2.75rem;
   }
 
+  @media (max-width: 639px) {
+    .field {
+      font-size: 16px;
+    }
+
+    .btn-sm {
+      min-height: 2.5rem;
+    }
+  }
+
   .field::placeholder {
     color: #a99c8d;
   }
