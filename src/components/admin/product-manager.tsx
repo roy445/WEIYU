@@ -218,7 +218,7 @@ export function ProductManager({ products, categories, initialFilter }: { produc
   const uploadImage = async (file: File | undefined) => {
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
-      setError("圖片大小不可超過 5 MB。");
+      setError("圖片無法上傳，請選擇其他圖片後再試。");
       return;
     }
     setError(null);
@@ -229,7 +229,7 @@ export function ProductManager({ products, categories, initialFilter }: { produc
       const response = await fetch("/api/admin/uploads/products", { method: "POST", body: formData });
       const data = (await response.json()) as { ok?: boolean; error?: string; imageUrl?: string };
       if (!response.ok || !data.ok || !data.imageUrl) {
-        setError(data.error ?? "圖片上傳失敗。");
+        setError("圖片無法上傳，請選擇其他圖片後再試。");
         return;
       }
       updateDraft("imageUrl", data.imageUrl);
@@ -391,7 +391,6 @@ export function ProductManager({ products, categories, initialFilter }: { produc
                   <SafeImage src={draft.imageUrl || null} alt="圖片預覽" sizes="56px" className="object-cover" />
                 </div>
               </div>
-              <p className="mt-1 text-xs text-cocoa-soft">支援 JPG、PNG、WebP，單張最多 5 MB。上傳的圖片保存在網站主機的 public/images/products/；雲端無伺服器部署請改用持久化圖片儲存服務。</p>
             </div>
             <div className="sm:col-span-2">
               <label className="field-label" htmlFor="p-summary">簡短介紹（卡片顯示）</label>

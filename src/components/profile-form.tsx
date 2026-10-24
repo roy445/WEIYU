@@ -34,7 +34,7 @@ export function ProfileForm({ user }: { user: { name: string; email: string; pho
   const chooseAvatar = (file: File | undefined) => {
     if (!file) return;
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 8 * 1024 * 1024) {
-      setError("頭像需為 JPG、PNG 或 WebP，原始圖片不可超過 8 MB。");
+      setError("圖片無法使用，請選擇其他圖片後再試。");
       return;
     }
     setError(null);

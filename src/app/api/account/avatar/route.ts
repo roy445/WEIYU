@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   }
   if (!(file instanceof File)) return fail("請選擇已裁切的頭像圖片。");
   if (!allowedTypes.has(file.type) || file.size <= 0 || file.size > MAX_FILE_SIZE) {
-    return fail("頭像需為 JPG、PNG 或 WebP，且小於 4 MB。");
+    return fail("圖片無法上傳，請重新選擇後再試。");
   }
 
   const timestamp = Math.floor(Date.now() / 1000).toString();
@@ -65,4 +65,3 @@ export async function POST(request: Request) {
     return fail("頭像上傳失敗，請檢查網路後再試。", 502);
   }
 }
-

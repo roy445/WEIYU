@@ -34,11 +34,11 @@ export async function POST(request: Request) {
   const file = form.get("file");
   if (!(file instanceof File)) return fail("請選擇一張圖片。");
   const extension = extensions[file.type];
-  if (!extension) return fail("圖片格式只支援 JPG、PNG 或 WebP。");
-  if (file.size <= 0 || file.size > MAX_FILE_SIZE) return fail("圖片大小需介於 1 byte 至 5 MB。");
+  if (!extension) return fail("圖片無法上傳，請重新選擇後再試。");
+  if (file.size <= 0 || file.size > MAX_FILE_SIZE) return fail("圖片無法上傳，請重新選擇後再試。");
 
   const bytes = Buffer.from(await file.arrayBuffer());
-  if (!matchesImageSignature(file.type, bytes)) return fail("檔案內容與圖片格式不符，請重新選擇。");
+  if (!matchesImageSignature(file.type, bytes)) return fail("圖片無法上傳，請重新選擇後再試。");
 
   const filename = `${randomUUID()}.${extension}`;
   const directory = path.join(process.cwd(), "public", "images", "products");
