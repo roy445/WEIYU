@@ -5,6 +5,17 @@ import { requireAdmin } from "@/lib/admin";
 import { asInt, asString, fail, ok, readJson } from "@/lib/api";
 import { logAdminAction } from "@/lib/orders";
 
+function getDatabaseErrorCode(error: unknown): string | undefined {
+  let current: unknown = error;
+  for (let depth = 0; depth < 5; depth += 1) {
+    if (!current || typeof current !== "object") return undefined;
+    const candidate = current as { code?: unknown; cause?: unknown };
+    if (typeof candidate.code === "string") return candidate.code;
+    current = candidate.cause;
+  }
+  return undefined;
+}
+
 export async function GET() {
   const admin = await requireAdmin();
   if (!admin) return fail("需要管理員權限。", 403);
@@ -85,7 +96,7 @@ export async function POST(request: Request) {
     await logAdminAction(admin, "coupon.create", "coupon", created[0]?.id ?? null, `建立優惠券 ${code}`);
     return ok({ message: "優惠券已建立。", id: created[0]?.id }, 201);
   } catch (error) {
-    const codeValue = (error as { code?: string }).code;
+    const codeValue = getDatabaseErrorCode(error);
     if (codeValue === "23505") return fail("這組優惠券代碼已存在，請換一組代碼。", 409);
     console.error("Coupon creation failed", error instanceof Error ? error.message : "unknown");
     return fail("建立優惠券失敗，請稍後再試。", 500);
