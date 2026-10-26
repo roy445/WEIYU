@@ -94,7 +94,12 @@ export function LoginForm({ next }: { next?: string }) {
         </div>
       </div>
       <div aria-live="polite" className="min-h-5">
-        {error ? <p className="text-sm text-[#8A4B3D] animate-fade-in">{error}</p> : null}
+        {error ? (
+          <div className="animate-fade-in">
+            <p className="text-sm text-[#8A4B3D]">{error}</p>
+            {error.includes("尚未啟用") ? <Link href="/resend-activation" className="mt-1 inline-block text-sm text-caramel-deep underline underline-offset-4">立即重寄啟用信</Link> : null}
+          </div>
+        ) : null}
       </div>
       <button type="submit" className="btn btn-primary w-full" disabled={pending}>
         {pending ? "登入中…" : "登入"}

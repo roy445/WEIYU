@@ -219,8 +219,11 @@ export function ProductCostManager({
   const previewMarginBasisPoints = Math.min(9900, Math.max(0, Math.round((Number(targetMargin) || 0) * 100)));
   const previewSuggestedPrice = Math.ceil(previewUnitCost * 10_000 / (10_000 - previewMarginBasisPoints));
   const selectedProduct = products.find((product) => product.id === selectedProductId);
-  const estimatedCurrentProfit = (selectedProduct?.price ?? 0) - previewUnitCost;
-  const estimatedCurrentMargin = selectedProduct?.price ? Math.round(estimatedCurrentProfit / selectedProduct.price * 1000) / 10 : 0;
+  const currentPrice = selectedProduct?.price ?? 0;
+  const estimatedCurrentProfit = currentPrice - previewUnitCost;
+  const estimatedCurrentMargin = currentPrice ? Math.round(estimatedCurrentProfit / currentPrice * 1000) / 10 : 0;
+  const estimatedCurrentCostRate = currentPrice ? Math.round(previewUnitCost / currentPrice * 1000) / 10 : 0;
+  const belowBreakeven = Boolean(selectedProduct && currentPrice < previewUnitCost);
 
   return (
     <div className="space-y-8">
@@ -275,9 +278,15 @@ export function ProductCostManager({
                 <p className="text-sm">總成本／批：<strong>{formatPrice(previewBatchCost)}</strong></p>
                 <p className="text-sm">每份成本（無條件進位）：<strong>{formatPrice(previewUnitCost)}</strong></p>
                 <p className="text-sm sm:col-span-2">毛利率定價參考：<strong className="text-caramel-deep">{formatPrice(previewSuggestedPrice)}</strong></p>
-                <p className="text-sm">目前售價估算毛利：<strong>{formatPrice(estimatedCurrentProfit)}／份</strong>（毛利率 {estimatedCurrentMargin}%）</p>
+                <div className={`rounded-lg border p-4 sm:col-span-2 lg:col-span-4 ${belowBreakeven ? "border-[#8A4B3D]/40 bg-[#FFF5F3]" : "border-caramel/20 bg-cream/70"}`}>
+                  <p className="text-sm font-semibold">損益兩平最低售價：{formatPrice(previewUnitCost)}／份</p>
+                  {selectedProduct ? (
+                    <p className="mt-1 text-sm">目前售價 {formatPrice(currentPrice)} · 估算毛利 {formatPrice(estimatedCurrentProfit)}／份 · 毛利率 {estimatedCurrentMargin}% · 成本率 {estimatedCurrentCostRate}%</p>
+                  ) : <p className="mt-1 text-sm text-cocoa-soft">選擇商品後會顯示目前售價與毛利估算。</p>}
+                  {belowBreakeven ? <p role="alert" className="mt-2 text-sm font-medium text-[#8A4B3D]">目前售價低於每份成本，至少需售 {formatPrice(previewUnitCost)}／份才可達到損益兩平。</p> : null}
+                </div>
                 <p className="text-sm">建議售價估算毛利：<strong>{formatPrice(previewSuggestedPrice - previewUnitCost)}／份</strong></p>
-                <p className="text-xs leading-relaxed text-cocoa-soft sm:col-span-2">估算公式：每份成本 ÷（1－目標毛利率）。成本金額以新台幣整數元保守進位，未計平台抽成、稅費或其他未輸入項目；目前售價毛利若為負數，代表售價低於估算成本。</p>
+                <p className="text-xs leading-relaxed text-cocoa-soft sm:col-span-2">每份成本包含已輸入材料、耗損、工時與水電等成本；未輸入的包裝、商品規格價差、平台抽成、稅費、運費或其他成本不納入估算。毛利＝目前售價－每份成本；成本率＝每份成本÷目前售價。</p>
               </div>
               <button className="btn btn-primary" type="submit" disabled={pending}>儲存成本與定價設定</button>
             </form>

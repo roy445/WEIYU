@@ -9,6 +9,7 @@ import { emailVerificationTokens, passwordResetTokens, sessions, users } from "@
 export const SESSION_COOKIE = "weiyu_session";
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export const EMAIL_VERIFICATION_TTL_MS = 60 * 60 * 1000;
+const EMAIL_VERIFICATION_REMINDER_COOKIE = "weiyu_verify_reminder";
 
 export type SessionUser = {
   id: number;
@@ -95,8 +96,13 @@ function hashToken(token: string): string {
 export async function createSession(userId: number): Promise<void> {
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
-  await db.insert(sessions).values({ id: hashToken(token), userId, expiresAt });
+  const lastLoginAt = new Date();
+  await db.transaction(async (tx) => {
+    await tx.insert(sessions).values({ id: hashToken(token), userId, expiresAt });
+    await tx.update(users).set({ lastLoginAt }).where(eq(users.id, userId));
+  });
   const store = await cookies();
+  store.delete(EMAIL_VERIFICATION_REMINDER_COOKIE);
   store.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
@@ -106,6 +112,33 @@ export async function createSession(userId: number): Promise<void> {
   });
 }
 
+export async function setUnverifiedEmailReminder(userId: number): Promise<void> {
+  if (!Number.isSafeInteger(userId) || userId <= 0) return;
+  const store = await cookies();
+  store.set(EMAIL_VERIFICATION_REMINDER_COOKIE, String(userId), {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: SESSION_TTL_MS / 1000,
+  });
+}
+
+export async function hasUnverifiedEmailReminder(): Promise<boolean> {
+  try {
+    const store = await cookies();
+    const userId = Number(store.get(EMAIL_VERIFICATION_REMINDER_COOKIE)?.value);
+    if (!Number.isSafeInteger(userId) || userId <= 0) return false;
+    const rows = await db.select({ id: users.id }).from(users).where(and(
+      eq(users.id, userId),
+      isNull(users.emailVerifiedAt),
+    )).limit(1);
+    return rows.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 export async function destroySession(): Promise<void> {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
@@ -113,6 +146,7 @@ export async function destroySession(): Promise<void> {
     await db.delete(sessions).where(eq(sessions.id, hashToken(token)));
   }
   store.set(SESSION_COOKIE, "", { httpOnly: true, path: "/", maxAge: 0 });
+  store.delete(EMAIL_VERIFICATION_REMINDER_COOKIE);
 }
 
 /** 變更密碼後，登出此使用者在其他裝置的所有 Session，保留目前這一個。 */

@@ -75,8 +75,9 @@ export function CouponCenter({ items, points: initialPoints }: Props) {
           ) : null}
         </section>
         <form onSubmit={claim} className="surface rounded-xl p-6">
-          <p className="eyebrow">Redeem your code</p>
-          <h2 className="mt-2 text-2xl">輸入優惠券代碼</h2>
+          <p className="eyebrow">Redeem another code</p>
+          <h2 className="mt-2 text-2xl">領取其他優惠券代碼</h2>
+          <p className="mt-2 text-sm leading-relaxed text-cocoa-soft">店家直接贈送的優惠券會出現在「我的優惠券」，結帳時選取即可，無須輸入代碼。下方欄位只用於兌換店家另外提供的代碼券。</p>
           <label htmlFor="coupon-code" className="field-label mt-4">優惠券代碼</label>
           <input id="coupon-code" className="field uppercase" value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} maxLength={32} autoComplete="off" required />
           {error ? <p role="alert" className="mt-2 text-xs text-[#8A4B3D]">{error}</p> : null}
@@ -98,7 +99,7 @@ export function CouponCenter({ items, points: initialPoints }: Props) {
         ) : (
           <div className="surface mt-4 rounded-xl px-6 py-12 text-center">
             <p className="font-serif text-xl">目前沒有可用優惠券</p>
-            <p className="mt-2 text-sm text-cocoa-soft">輸入店家提供的優惠券代碼即可領取。</p>
+            <p className="mt-2 text-sm text-cocoa-soft">店家贈送的優惠券會直接顯示於此；若有其他優惠代碼，再使用左側欄位兌換即可。</p>
           </div>
         )}
       </section>

@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
-import { createSession, deleteExpiredPendingRegistrations, verifyPassword } from "@/lib/auth";
+import { createSession, deleteExpiredPendingRegistrations, setUnverifiedEmailReminder, verifyPassword } from "@/lib/auth";
 import { asString, clientKey, fail, ok, rateLimit, readJson } from "@/lib/api";
 
 export async function POST(request: Request) {
@@ -25,6 +25,7 @@ export async function POST(request: Request) {
       return fail("電子郵件或密碼不正確。", 401);
     }
     if (!user.emailVerifiedAt) {
+      await setUnverifiedEmailReminder(user.id);
       return fail("此帳號尚未啟用或需重新驗證 Email。請重寄啟用信後再登入。", 403);
     }
     await createSession(user.id);

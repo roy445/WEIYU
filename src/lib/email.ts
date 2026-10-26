@@ -3,7 +3,7 @@ import "server-only";
 import nodemailer, { type SendMailOptions } from "nodemailer";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { orderItems, orders } from "@/db/schema";
+import { emailDeliveryLogs, orderItems, orders } from "@/db/schema";
 import { ORDER_STATUS, PAYMENT_STATUS, formatPrice } from "@/lib/brand";
 import { getShopSettings } from "@/lib/settings";
 
@@ -108,21 +108,41 @@ function brandedEmail(title: string, body: string, shopName: string, brandNameEn
 </table></td></tr></table></body></html>`;
 }
 
-export async function sendBrandedEmail(to: string, subject: string, title: string, body: string): Promise<void> {
-  const config = getEmailConfig();
-  const settings = await getShopSettings();
-  await sendMailWithRetry(config.transportOptions, {
-    from: config.from,
-    to,
+export async function sendBrandedEmail(to: string, subject: string, title: string, body: string, reason = title): Promise<void> {
+  const [log] = await db.insert(emailDeliveryLogs).values({
+    recipientEmail: to,
     subject,
-    html: brandedEmail(
-      title,
-      body,
-      settings.shopName,
-      settings.brandNameEn,
-      getEmailLogoUrl(config.siteUrl, settings.logoUrl),
-    ),
-  });
+    reason: reason.slice(0, 500),
+    status: "pending",
+    attemptedAt: new Date(),
+  }).returning({ id: emailDeliveryLogs.id });
+  if (!log) throw new Error("無法建立郵件寄送紀錄。");
+
+  try {
+    const config = getEmailConfig();
+    const settings = await getShopSettings();
+    await sendMailWithRetry(config.transportOptions, {
+      from: config.from,
+      to,
+      subject,
+      html: brandedEmail(
+        title,
+        body,
+        settings.shopName,
+        settings.brandNameEn,
+        getEmailLogoUrl(config.siteUrl, settings.logoUrl),
+      ),
+    });
+    try {
+      await db.update(emailDeliveryLogs).set({ status: "sent", sentAt: new Date(), error: null }).where(eq(emailDeliveryLogs.id, log.id));
+    } catch (error) {
+      console.error("Email was sent but its delivery log could not be updated", error instanceof Error ? error.message : "unknown");
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message.slice(0, 1000) : "Unknown email delivery error";
+    await db.update(emailDeliveryLogs).set({ status: "failed", error: message }).where(eq(emailDeliveryLogs.id, log.id)).catch(() => undefined);
+    throw error;
+  }
 }
 
 export async function sendPasswordResetEmail(to: string, token: string): Promise<void> {
@@ -131,7 +151,7 @@ export async function sendPasswordResetEmail(to: string, token: string): Promise
   const body = `<p style="font-size:15px;line-height:1.8;color:#6f5545">我們收到重設帳號密碼的請求。請在 30 分鐘內點選下方按鈕設定新密碼；若不是你本人操作，可忽略此信。</p>
 <p style="margin:26px 0"><a href="${escapeHtml(resetUrl)}" style="display:inline-block;border-radius:999px;background:#a8754a;padding:13px 24px;color:#fffaf3;text-decoration:none;font-size:14px">重設密碼</a></p>
 <p style="font-size:12px;line-height:1.7;color:#6f5545">若按鈕無法使用，請複製此網址到瀏覽器：<br><a href="${escapeHtml(resetUrl)}" style="color:#8a5c36;word-break:break-all">${escapeHtml(resetUrl)}</a></p>`;
-  await sendBrandedEmail(to, "重設唯遇甜所帳號密碼", "重設你的密碼", body);
+  await sendBrandedEmail(to, "重設唯遇甜所帳號密碼", "重設你的密碼", body, "會員要求重設帳號密碼");
 }
 
 export async function sendEmailVerificationEmail(to: string, token: string, next?: string): Promise<void> {
@@ -143,7 +163,7 @@ export async function sendEmailVerificationEmail(to: string, token: string, next
 <p style="margin:26px 0"><a href="${escapeHtml(activationUrl)}" style="display:inline-block;border-radius:999px;background:#a8754a;padding:13px 24px;color:#fffaf3;text-decoration:none;font-size:14px">啟用會員帳號</a></p>
 <p style="font-size:12px;line-height:1.7;color:#6f5545">若按鈕無法使用，請複製此網址到瀏覽器：<br><a href="${escapeHtml(activationUrl)}" style="color:#8a5c36;word-break:break-all">${escapeHtml(activationUrl)}</a></p>
 <p style="font-size:13px;line-height:1.8;color:#6f5545"><strong>如果收件匣沒有看到這封信，請檢查垃圾郵件／垃圾信件資料夾。</strong>若信件在垃圾郵件中，請將它移至收件匣，並按「回報為非垃圾郵件」或「非垃圾郵件」，之後才能順利收到帳號通知。若你沒有申請此帳號，請忽略這封信。</p>`;
-  await sendBrandedEmail(to, "請啟用你的唯遇甜所會員帳號", "完成帳號啟用", body);
+  await sendBrandedEmail(to, "請啟用你的唯遇甜所會員帳號", "完成帳號啟用", body, "會員註冊或要求重寄 Email 驗證信");
 }
 
 export async function sendAnnouncementEmail(
@@ -156,7 +176,7 @@ export async function sendAnnouncementEmail(
   const body = `<p style="font-size:15px;line-height:1.9;color:#6f5545">${escapeHtml(announcementBody).replace(/\n/g, "<br>")}</p>
 <p style="margin:26px 0"><a href="${escapeHtml(`${siteUrl}/account/announcements`)}" style="display:inline-block;border-radius:999px;background:#a8754a;padding:13px 24px;color:#fffaf3;text-decoration:none;font-size:14px">查看站內公告</a></p>
 <p style="font-size:12px;line-height:1.7;color:#6f5545">公告編號：${announcementId}</p>`;
-  await sendBrandedEmail(to, `WEIYU 公告｜${title}`, title, body);
+  await sendBrandedEmail(to, `WEIYU 公告｜${title}`, title, body, `站內公告 #${announcementId}：${title}`);
 }
 
 export async function sendProductLaunchEmail(
@@ -169,7 +189,7 @@ export async function sendProductLaunchEmail(
 ${product.summary ? `<p style="font-size:14px;line-height:1.8;color:#6f5545">${escapeHtml(product.summary)}</p>` : ""}
 <p style="margin:26px 0"><a href="${escapeHtml(productUrl)}" style="display:inline-block;border-radius:999px;background:#a8754a;padding:13px 24px;color:#fffaf3;text-decoration:none;font-size:14px">查看甜點</a></p>
 <p style="font-size:12px;line-height:1.7;color:#6f5545">這封信是因你登記此商品的上架提醒而寄出，不會加入其他行銷郵件。</p>`;
-  await sendBrandedEmail(to, `上架通知｜${product.name}`, `${product.name} 已上架`, body);
+  await sendBrandedEmail(to, `上架通知｜${product.name}`, `${product.name} 已上架`, body, `會員登記商品上架提醒：${product.name}`);
 }
 
 export async function sendProductTrackingEmail(
@@ -182,7 +202,7 @@ export async function sendProductTrackingEmail(
 <ul style="font-size:14px;line-height:1.9;color:#6f5545">${product.changes.map((change) => `<li>${escapeHtml(change)}</li>`).join("")}</ul>
 <p style="margin:26px 0"><a href="${escapeHtml(productUrl)}" style="display:inline-block;border-radius:999px;background:#a8754a;padding:13px 24px;color:#fffaf3;text-decoration:none;font-size:14px">查看商品</a></p>
 <p style="font-size:12px;line-height:1.7;color:#6f5545">這封通知只因你主動追蹤此商品而寄出。你可在商品頁關閉追蹤或 Email 通知。</p>`;
-  await sendBrandedEmail(to, `商品追蹤通知｜${product.name}`, `${product.name} 商品資訊更新`, body);
+  await sendBrandedEmail(to, `商品追蹤通知｜${product.name}`, `${product.name} 商品資訊更新`, body, `會員追蹤商品更新通知：${product.name}`);
 }
 
 export async function sendOrderEmail(orderId: number, kind: "created" | "status"): Promise<void> {
@@ -213,5 +233,5 @@ export async function sendOrderEmail(orderId: number, kind: "created" | "status"
 <div style="margin:16px 0;border-top:1px solid #e7d8c3;padding-top:12px;color:#543b2b">${rewardLines}<p style="margin:8px 0 0;font-size:14px"><strong>合計：${formatPrice(order.total)}</strong></p>${order.status === "completed" && order.pointsEarned > 0 ? `<p style="margin:8px 0 0;font-size:13px"><strong>本筆回饋甜甜數：${order.pointsEarned} 點</strong></p>` : ""}</div>
 ${order.adminNote?.trim() ? `<div style="margin:20px 0;border-left:3px solid #a8754a;background:#f5eee2;padding:12px 16px;color:#543b2b"><strong>店家備註</strong><p style="margin:6px 0 0;white-space:pre-line;line-height:1.7">${escapeHtml(order.adminNote.trim())}</p></div>` : ""}
 <p style="font-size:12px;color:#6f5545"><a href="${escapeHtml(`${process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "")}/account/orders/${order.id}`)}" style="color:#8a5c36">查看訂單詳情</a></p>`;
-  await sendBrandedEmail(order.contactEmail, `訂單 ${order.orderNo}｜${title}`, title, body);
+  await sendBrandedEmail(order.contactEmail, `訂單 ${order.orderNo}｜${title}`, title, body, `訂單 ${order.orderNo} 的${kind === "created" ? "建立" : "狀態更新"}通知`);
 }

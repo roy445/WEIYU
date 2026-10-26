@@ -94,7 +94,7 @@ export async function POST(request: Request) {
       user: { id: result.id, name: result.name, role: result.role },
       welcomeCouponGranted: result.welcomeCouponGranted,
       message: result.welcomeCouponGranted
-        ? "帳號已啟用，NEW50 新會員優惠券已加入你的優惠券中心。"
+        ? "帳號已啟用，NEW50 優惠券已直接加入你的會員帳戶；結帳時選取即可，無須輸入代碼。"
         : "帳號已啟用，可以開始使用會員功能。",
     });
   } catch (error) {

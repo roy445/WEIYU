@@ -31,6 +31,7 @@ export const users = pgTable(
     avatarUrl: text("avatar_url"),
     emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
     pendingVerificationExpiresAt: timestamp("pending_verification_expires_at", { withTimezone: true }),
+    lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
     termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true }),
     privacyAcknowledgedAt: timestamp("privacy_acknowledged_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -329,6 +330,25 @@ export const announcementNotifications = pgTable(
   (table) => [
     primaryKey({ columns: [table.announcementId, table.userId], name: "announcement_notifications_pkey" }),
     index("announcement_notifications_user_idx").on(table.userId, table.createdAt),
+  ],
+);
+
+export const emailDeliveryLogs = pgTable(
+  "email_delivery_logs",
+  {
+    id: serial("id").primaryKey(),
+    recipientEmail: text("recipient_email").notNull(),
+    subject: text("subject").notNull(),
+    reason: text("reason").notNull(),
+    status: text("status").notNull().default("pending"),
+    error: text("error"),
+    attemptedAt: timestamp("attempted_at", { withTimezone: true }),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("email_delivery_logs_created_idx").on(table.createdAt),
+    index("email_delivery_logs_status_idx").on(table.status),
   ],
 );
 

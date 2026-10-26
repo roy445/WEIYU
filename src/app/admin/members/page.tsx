@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PrintButton } from "@/components/print-button";
+import { MemberPointsAdjustmentForm } from "@/components/admin/member-points-adjustment-form";
 import { getAdminMemberReport } from "@/lib/admin-reports";
 import { formatDateTime } from "@/lib/brand";
 import { formatMembershipSpend, getMembershipTier } from "@/lib/membership";
 
-export const metadata: Metadata = { title: "會員帳號" };
+export const metadata: Metadata = { title: "使用者帳號" };
 
 export default async function AdminMembersPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { q: rawQuery } = await searchParams;
@@ -19,9 +20,9 @@ export default async function AdminMembersPage({ searchParams }: { searchParams:
     <div className="printable-report space-y-8">
       <header>
         <p className="eyebrow">Member accounts</p>
-        <h1 className="mt-3 text-3xl">會員帳號</h1>
-        <p className="mt-2 text-sm text-cocoa-soft">搜尋會員姓名或 Email，查看加入時間、累積完成消費、會員等級與訂單數。</p>
-        <p className="mt-2 text-sm">會員總數：{(allMembers?.length ?? members.length).toLocaleString("zh-TW")}</p>
+        <h1 className="mt-3 text-3xl">會員與管理員帳號</h1>
+        <p className="mt-2 text-sm text-cocoa-soft">搜尋姓名或 Email，查看最近登入、可用甜甜數、累積完成消費、稱號等級與訂單數；也可手動調整甜甜數並記錄原因。</p>
+        <p className="mt-2 text-sm">使用者總數：{(allMembers?.length ?? members.length).toLocaleString("zh-TW")}</p>
       </header>
 
       <form method="get" className="print-hidden surface flex flex-col gap-3 rounded-lg p-4 sm:flex-row">
@@ -31,7 +32,7 @@ export default async function AdminMembersPage({ searchParams }: { searchParams:
       </form>
 
       <p className="text-xs text-cocoa-soft">
-        {query ? `符合搜尋條件 ${members.length} 位` : `目前共有 ${members.length} 位會員`}
+        {query ? `符合搜尋條件 ${members.length} 位` : `目前共有 ${members.length} 個使用者帳號`}
       </p>
       <div className="print-hidden flex flex-wrap gap-2">
         <a href={`/api/admin/reports/members${query ? `?q=${encodeURIComponent(query)}` : ""}`} className="btn btn-secondary btn-sm">下載會員 CSV</a>
@@ -45,18 +46,18 @@ export default async function AdminMembersPage({ searchParams }: { searchParams:
           {members.map((member) => (
             <li key={member.id} className="surface flex flex-col gap-3 rounded-lg p-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="font-medium text-cocoa">{member.name}</p>
+                <p className="font-medium text-cocoa">{member.name}<span className="badge ml-2 bg-oat-soft text-cocoa">{member.role === "admin" ? "管理員" : "會員"}</span></p>
                 <p className="mt-1 text-sm text-cocoa-soft">{member.email}</p>
                 {member.phone ? <p className="mt-1 text-xs text-cocoa-soft">電話：{member.phone}</p> : null}
                 <p className="mt-1 text-xs text-cocoa-soft">加入時間：{formatDateTime(member.createdAt)}</p>
+                <p className="mt-1 text-xs text-cocoa-soft">最近登入：{member.lastLoginAt ? formatDateTime(member.lastLoginAt) : "尚無登入紀錄"} · 可用甜甜數：{member.currentPoints.toLocaleString("zh-TW")}</p>
                 <p className="mt-1 text-xs text-cocoa-soft">
                   完成消費 {formatMembershipSpend(member.completedSpend)} · 等級 {getMembershipTier(member.completedSpend).current.name} · 訂單 {member.orderCount} 筆
                 </p>
               </div>
-              <div className="print-hidden">
-                <Link href={`/admin/orders?q=${encodeURIComponent(member.email)}`} className="btn btn-secondary btn-sm">
-                  查看 {member.orderCount} 筆訂單
-                </Link>
+              <div className="print-hidden flex flex-col items-start gap-2 sm:items-end">
+                <Link href={`/admin/orders?q=${encodeURIComponent(member.email)}`} className="btn btn-secondary btn-sm">查看 {member.orderCount} 筆訂單</Link>
+                <MemberPointsAdjustmentForm userId={member.id} name={member.name} currentPoints={member.currentPoints} />
               </div>
             </li>
           ))}

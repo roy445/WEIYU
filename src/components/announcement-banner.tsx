@@ -14,6 +14,19 @@ export function PinnedAnnouncement({ announcement }: { announcement: BannerAnnou
   );
 }
 
+export function UnverifiedEmailNotice() {
+  return (
+    <aside aria-label="Email 尚未驗證" role="status" className="border-b border-[#D9A39A] bg-[#FFF5F3] px-4 py-3 text-[#8A4B3D]">
+      <div className="container-wy flex flex-wrap items-center justify-between gap-3 text-sm">
+        <p>你的帳號尚未完成 Email 驗證，請先驗證以使用完整會員功能。</p>
+        <Link href="/resend-activation" className="shrink-0 rounded-full border border-[#8A4B3D]/40 px-4 py-1.5 font-medium underline underline-offset-2">
+          立即重寄驗證信
+        </Link>
+      </div>
+    </aside>
+  );
+}
+
 export function AnnouncementMarquee({ announcements }: { announcements: BannerAnnouncement[] }) {
   if (!announcements.length) return null;
   const text = announcements.map((announcement) => `${announcement.title}｜${announcement.body}`).join("　　✦　　");
