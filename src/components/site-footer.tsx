@@ -61,7 +61,7 @@ export function SiteFooter({ settings }: { settings: ShopSettings }) {
               {settings.contactEmail ? (
                 <p>
                   Email：
-                  <a className="link-quiet underline decoration-mist underline-offset-4" href={`mailto:${settings.contactEmail}`}>
+                  <a className="link-quiet break-all underline decoration-mist underline-offset-4" href={`mailto:${settings.contactEmail}`}>
                     {settings.contactEmail}
                   </a>
                 </p>
@@ -71,7 +71,7 @@ export function SiteFooter({ settings }: { settings: ShopSettings }) {
                 <p>
                   社群：
                   {/^https?:\/\//.test(settings.contactSocial) ? (
-                    <a className="link-quiet underline decoration-mist underline-offset-4" href={settings.contactSocial} target="_blank" rel="noreferrer noopener">
+                    <a className="link-quiet break-all underline decoration-mist underline-offset-4" href={settings.contactSocial} target="_blank" rel="noreferrer noopener">
                       {settings.contactSocial.replace(/^https?:\/\//, "")}
                     </a>
                   ) : (

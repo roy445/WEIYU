@@ -148,7 +148,7 @@ export default async function HomePage() {
             <p className="mt-2 text-sm text-cocoa-soft">上架後會即時出現在這裡。</p>
           </Reveal>
         ) : (
-          <div className="mt-10 grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:gap-6 lg:grid-cols-3">
+          <div className="mt-10 grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 sm:gap-6 lg:grid-cols-3">
             {featuredItems.map((product, index) => (
               <Reveal key={product.id} delay={index * 90} className="h-full">
                 <ProductCard product={product} index={index} />

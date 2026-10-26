@@ -50,7 +50,7 @@ export function SiteHeader({ user }: { user: HeaderUser }) {
       <div className="container-wy">
         <div
           className={`flex items-center justify-between transition-[padding] duration-300 ${
-            scrolled ? "py-2" : "py-3.5"
+            scrolled ? "py-2 sm:py-2" : "py-2.5 sm:py-3.5"
           }`}
         >
           <Link
@@ -58,7 +58,8 @@ export function SiteHeader({ user }: { user: HeaderUser }) {
             aria-label="WEIYU 唯遇甜所 首頁"
             className={`shrink-0 origin-left transition-transform duration-300 ${scrolled ? "scale-[0.86]" : "scale-100"}`}
           >
-            <LogoHorizontal />
+            <span className="sm:hidden"><LogoHorizontal size="sm" /></span>
+            <span className="hidden sm:inline-flex"><LogoHorizontal /></span>
           </Link>
 
           <nav aria-label="主要導覽" className="hidden items-center gap-8 lg:flex">
@@ -113,7 +114,7 @@ export function SiteHeader({ user }: { user: HeaderUser }) {
               <>
                 <Link
                   href="/account/coupons"
-                  className="flex items-center gap-1.5 rounded-full border border-caramel/40 px-2.5 py-2 text-xs text-caramel-deep transition-colors hover:bg-oat-soft"
+                  className="hidden items-center gap-1.5 rounded-full border border-caramel/40 px-2.5 py-2 text-xs text-caramel-deep transition-colors hover:bg-oat-soft lg:flex"
                   aria-label={`目前有 ${user.points} 點甜甜數，前往甜甜數與優惠券中心`}
                 >
                   <svg viewBox="0 0 32 32" className="h-5 w-5" fill="none" aria-hidden="true">
@@ -131,7 +132,7 @@ export function SiteHeader({ user }: { user: HeaderUser }) {
             <button
               type="button"
               onClick={openCart}
-              className="relative rounded-full border border-mist px-3.5 py-2 text-[0.76rem] tracking-[0.1em] text-cocoa transition-colors hover:border-caramel hover:text-caramel-deep"
+              className="relative flex min-h-11 min-w-11 items-center justify-center rounded-full border border-mist px-2.5 py-2 text-[0.76rem] tracking-[0.1em] text-cocoa transition-colors hover:border-caramel hover:text-caramel-deep sm:min-w-0 sm:px-3.5"
               aria-label={`開啟購物袋，目前 ${isReady ? count : 0} 件商品`}
             >
               <span className="flex items-center gap-2">
@@ -159,7 +160,7 @@ export function SiteHeader({ user }: { user: HeaderUser }) {
             <button
               type="button"
               onClick={() => setMenuOpen((open) => !open)}
-              className="rounded-full border border-mist p-2 text-cocoa transition-colors hover:border-caramel lg:hidden"
+              className="flex h-11 w-11 items-center justify-center rounded-full border border-mist text-cocoa transition-colors hover:border-caramel lg:hidden"
               aria-expanded={menuOpen}
               aria-controls="mobile-nav"
               aria-label={menuOpen ? "關閉導覽選單" : "開啟導覽選單"}
@@ -178,14 +179,14 @@ export function SiteHeader({ user }: { user: HeaderUser }) {
         <div
           id="mobile-nav"
           hidden={!menuOpen}
-          className="border-t border-mist/70 pb-4 lg:hidden"
+          className="max-h-[calc(100dvh-4.5rem)] overscroll-contain overflow-y-auto border-t border-mist/70 pb-4 lg:hidden"
         >
           <nav aria-label="行動版導覽" className="flex flex-col pt-2">
             {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="rounded px-2 py-2.5 text-sm text-cocoa transition-colors hover:bg-oat-soft hover:text-caramel-deep"
+                  className="min-h-11 rounded px-2 py-3 text-sm text-cocoa transition-colors hover:bg-oat-soft hover:text-caramel-deep"
               >
                 {item.label}
               </Link>
@@ -193,19 +194,28 @@ export function SiteHeader({ user }: { user: HeaderUser }) {
             <div className="mt-2 border-t border-mist/70 pt-2">
               {user ? (
                 <>
+                  <div className="flex flex-wrap items-center gap-2 px-2 py-2 lg:hidden">
+                    <Link
+                      href="/account/coupons"
+                      className="flex min-h-11 items-center gap-2 rounded-full border border-caramel/40 px-3 py-2 text-sm text-caramel-deep"
+                      aria-label={`目前有 ${user.points} 點甜甜數，前往甜甜數與優惠券中心`}
+                    >
+                      <span aria-hidden="true">甜甜數</span><span>{user.points}</span>
+                    </Link>
+                  </div>
                   <Link
                     href="/account"
-                    className="flex items-center gap-2 rounded px-2 py-2.5 text-sm text-cocoa hover:bg-oat-soft"
+                    className="flex min-h-11 items-center gap-2 rounded px-2 py-3 text-sm text-cocoa hover:bg-oat-soft"
                   >
                     <MemberAvatar name={user.name} color={user.avatarColor} imageUrl={user.avatarUrl} size="sm" />
-                    {user.name} 的帳號
+                    <span className="min-w-0 truncate">{user.name} 的帳號</span>
                   </Link>
-                  <Link href="/account/announcements" className="block rounded px-2 py-2.5 text-sm text-cocoa hover:bg-oat-soft">公告通知</Link>
-                  <Link href="/account/favorites" className="block rounded px-2 py-2.5 text-sm text-cocoa hover:bg-oat-soft">我的收藏</Link>
+                  <Link href="/account/announcements" className="block min-h-11 rounded px-2 py-3 text-sm text-cocoa hover:bg-oat-soft">公告通知</Link>
+                  <Link href="/account/favorites" className="block min-h-11 rounded px-2 py-3 text-sm text-cocoa hover:bg-oat-soft">我的收藏</Link>
                   {user.role === "admin" ? (
                     <Link
                       href="/admin"
-                      className="block rounded px-2 py-2.5 text-sm text-caramel-deep hover:bg-oat-soft"
+                      className="block min-h-11 rounded px-2 py-3 text-sm text-caramel-deep hover:bg-oat-soft"
                     >
                       管理後台
                     </Link>
@@ -213,12 +223,12 @@ export function SiteHeader({ user }: { user: HeaderUser }) {
                 </>
               ) : (
                 <>
-                  <Link href="/login" className="block rounded px-2 py-2.5 text-sm text-cocoa hover:bg-oat-soft">
+                  <Link href="/login" className="block min-h-11 rounded px-2 py-3 text-sm text-cocoa hover:bg-oat-soft">
                     會員登入
                   </Link>
                   <Link
                     href="/register"
-                    className="block rounded px-2 py-2.5 text-sm text-cocoa hover:bg-oat-soft"
+                    className="block min-h-11 rounded px-2 py-3 text-sm text-cocoa hover:bg-oat-soft"
                   >
                     建立帳號
                   </Link>

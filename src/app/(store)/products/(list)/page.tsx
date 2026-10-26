@@ -49,7 +49,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
           <p className="mt-2 text-sm text-cocoa-soft">試試其他關鍵字，或切換分類看看。</p>
         </div>
       ) : (
-        <div key={`${q ?? ""}|${category ?? ""}|${sort ?? ""}`} className="mt-6 grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:gap-6 lg:grid-cols-3">
+        <div key={`${q ?? ""}|${category ?? ""}|${sort ?? ""}`} className="mt-6 grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 sm:gap-6 lg:grid-cols-3">
           {products.map((product, index) => (
             <div key={product.id} className="animate-rise h-full" style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}>
               <ProductCard product={product} index={index} />
