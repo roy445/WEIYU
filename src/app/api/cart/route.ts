@@ -2,6 +2,11 @@ import { inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { productVariants, products } from "@/db/schema";
 import { fail, ok, readJson } from "@/lib/api";
+import {
+  getSixCookieVariantAvailability,
+  SIX_COOKIE_PACK_SLUG,
+} from "@/lib/cookie-packs";
+import { getCookieFlavorInventory } from "@/lib/products";
 
 type CartInput = { productId: number; variantId?: number | null; quantity: number };
 
@@ -40,6 +45,8 @@ export async function POST(request: Request) {
       ? await db.select().from(productVariants).where(inArray(productVariants.id, variantIds))
       : [];
     const variantMap = new Map(variantRows.map((row) => [row.id, row]));
+    const hasCookieBag = [...productMap.values()].some((product) => product.slug === SIX_COOKIE_PACK_SLUG);
+    const cookieInventory = hasCookieBag ? await getCookieFlavorInventory() : null;
 
     const issues: string[] = [];
     const lines = items.flatMap((item) => {
@@ -53,12 +60,26 @@ export async function POST(request: Request) {
         return [];
       }
       const variant = item.variantId ? variantMap.get(item.variantId) : null;
+      if (product.slug === SIX_COOKIE_PACK_SLUG && !variant) {
+        issues.push("請回到六入曲奇大禮袋頁面重新選擇配法。");
+        return [];
+      }
       if (item.variantId && (!variant || variant.productId !== product.id || !variant.isActive)) {
         issues.push(`「${product.name}」的規格已更新，請重新選擇。`);
         return [];
       }
       const unitPrice = product.price + (variant?.priceDelta ?? 0);
-      const maxQuantity = Math.min(99, variant ? Math.min(product.stock, variant.stock) : product.stock);
+      const stock = product.slug === SIX_COOKIE_PACK_SLUG && cookieInventory
+        ? cookieInventory.availability.maxAvailable
+        : product.stock;
+      const variantStock = product.slug === SIX_COOKIE_PACK_SLUG && variant && cookieInventory
+        ? getSixCookieVariantAvailability(variant.name, cookieInventory.availability)
+        : variant?.stock;
+      const maxQuantity = Math.min(99, variantStock === undefined ? stock : Math.min(stock, variantStock));
+      if (maxQuantity <= 0) {
+        issues.push(`「${product.name}」目前缺貨，已從購物袋移除。`);
+        return [];
+      }
       const quantity = Math.max(1, Math.min(Number.isFinite(item.quantity) ? item.quantity : 1, Math.max(1, maxQuantity)));
       if (quantity < item.quantity) {
         issues.push(`「${product.name}」可售數量有限，已調整為 ${quantity} 份。`);
@@ -75,7 +96,7 @@ export async function POST(request: Request) {
           quantity,
           lineTotal: unitPrice * quantity,
           maxQuantity,
-          stock: product.stock,
+          stock,
           isActive: product.isActive,
         },
       ];

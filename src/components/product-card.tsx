@@ -6,6 +6,7 @@ import { recordProductMetric } from "@/lib/product-metrics";
 import { SafeImage } from "./safe-image";
 import { FavoriteButton } from "./favorite-button";
 import { useStore } from "./store-provider";
+import { SIX_COOKIE_PACK_SLUG } from "@/lib/cookie-packs";
 
 export type ProductCardData = {
   id: number;
@@ -100,7 +101,15 @@ export function ProductCard({ product, index = 0 }: { product: ProductCardData; 
         </div>
         <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-cocoa-soft sm:text-sm">{product.summary}</p>
         <div className="mt-auto flex items-center gap-2 pt-4">
-          <button
+          {product.slug === SIX_COOKIE_PACK_SLUG ? (
+            <Link
+              href={`/products/${product.slug}`}
+              aria-disabled={soldOut || !product.isActive}
+              className={`btn btn-secondary btn-sm min-w-0 flex-1 px-2 text-center text-[0.68rem] sm:px-3 sm:text-xs ${soldOut || !product.isActive ? "pointer-events-none opacity-50" : ""}`}
+            >
+              {soldOut ? "缺貨中" : "選擇禮袋配法"}
+            </Link>
+          ) : <button
             type="button"
             onClick={handleAdd}
             disabled={comingSoon || soldOut || !product.isActive}
@@ -108,7 +117,7 @@ export function ProductCard({ product, index = 0 }: { product: ProductCardData; 
             aria-label={`將 ${product.name} 加入購物袋`}
           >
             {comingSoon ? "即將上架" : !product.isActive ? "暫停販售" : product.price <= 0 ? "資訊待確認" : soldOut ? "補貨中" : "加入購物袋"}
-          </button>
+          </button>}
           <Link
             href={`/products/${product.slug}`}
             className="btn btn-sm shrink-0 border-transparent px-1.5 text-[0.68rem] text-cocoa-soft hover:text-caramel-deep sm:px-3 sm:text-xs"

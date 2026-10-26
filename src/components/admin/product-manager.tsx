@@ -88,9 +88,7 @@ function toDraft(product: AdminProduct): Draft {
     summary: product.summary,
     description: product.description,
     price: String(product.price),
-    stock: String(product.variants.length
-      ? product.variants.reduce((total, variant) => total + (variant.isActive ? variant.stock : 0), 0)
-      : product.stock),
+    stock: String(product.stock),
     isActive: product.isActive,
     imageUrl: product.imageUrl ?? "",
     galleryImages: product.galleryImages.join("\n"),
@@ -171,7 +169,7 @@ export function ProductManager({ products, categories, initialFilter }: { produc
     summary: draft.summary,
     description: draft.description,
     price: Number(draft.price),
-    stock: Number(draft.stock),
+    ...(draft.slug.trim() === "six-cookie-gift-bag" ? {} : { stock: Number(draft.stock) }),
     isActive: draft.isActive,
     imageUrl: draft.imageUrl,
     galleryImages: draft.galleryImages.split(/\r?\n/).map((imageUrl) => imageUrl.trim()).filter(Boolean),
@@ -183,12 +181,14 @@ export function ProductManager({ products, categories, initialFilter }: { produc
     requiresRefrigeration: draft.requiresRefrigeration === "" ? null : draft.requiresRefrigeration === "true",
     shelfLife: draft.shelfLife,
     pickupNote: draft.pickupNote,
-    variants: draft.variants.map((variant) => ({
-      name: variant.name,
-      priceDelta: Number(variant.priceDelta || 0),
-      stock: Number(variant.stock || 0),
-      isActive: variant.isActive,
-    })),
+    ...(draft.slug.trim() === "six-cookie-gift-bag" ? {} : {
+      variants: draft.variants.map((variant) => ({
+        name: variant.name,
+        priceDelta: Number(variant.priceDelta || 0),
+        stock: Number(variant.stock || 0),
+        isActive: variant.isActive,
+      })),
+    }),
   });
 
   const submit = async (event: FormEvent) => {
@@ -256,11 +256,7 @@ export function ProductManager({ products, categories, initialFilter }: { produc
   const updateDraft = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((current) => ({ ...current, [key]: value }));
 
   const updateVariants = (update: (current: VariantDraft[]) => VariantDraft[]) =>
-    setDraft((current) => {
-      const variants = update(current.variants);
-      const stock = variants.reduce((total, variant) => total + (variant.isActive ? Math.max(0, Number(variant.stock) || 0) : 0), 0);
-      return { ...current, variants, stock: String(stock) };
-    });
+    setDraft((current) => ({ ...current, variants: update(current.variants) }));
 
   const updateVariant = (index: number, patch: Partial<VariantDraft>) =>
     updateVariants((current) => current.map((variant, i) => (i === index ? { ...variant, ...patch } : variant)));
@@ -352,7 +348,7 @@ export function ProductManager({ products, categories, initialFilter }: { produc
                   {displayStock <= 0 && !product.isComingSoon ? <span className="badge bg-[#EFE4E1] text-[#8A4B3D]">缺貨</span> : null}
                 </div>
                 <p className="mt-1 text-xs text-cocoa-soft">
-                  /{product.slug} · {product.categoryName ?? "未分類"} · {formatPrice(product.price)} · 庫存 {displayStock}
+                  /{product.slug} · {product.categoryName ?? "未分類"} · {formatPrice(product.price)} · {product.slug === "six-cookie-gift-bag" ? `可售袋數 ${displayStock}（依三種口味庫存）` : `庫存 ${displayStock}`}
                   {product.launchAt ? ` · 預計上架 ${new Intl.DateTimeFormat("zh-TW", { timeZone: "Asia/Taipei", month: "numeric", day: "numeric", weekday: "short" }).format(product.launchAt)}` : ""}
                   {product.variants.length > 0 ? ` · ${product.variants.length} 種規格` : ""}
                 </p>
@@ -369,8 +365,8 @@ export function ProductManager({ products, categories, initialFilter }: { produc
                 })()}
               </div>
               <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                {product.variants.length > 0 ? (
-                  <span className="text-xs text-cocoa-soft">規格總庫存 {product.stock} · 請在「編輯」調整各口味</span>
+                {product.slug === "six-cookie-gift-bag" ? (
+                  <span className="text-xs text-cocoa-soft">禮袋數量依原味、巧克力、抹茶剩餘數量自動計算</span>
                 ) : (
                   <label className="flex items-center gap-2 text-xs text-cocoa-soft">
                     庫存
@@ -394,7 +390,7 @@ export function ProductManager({ products, categories, initialFilter }: { produc
                     />
                   </label>
                 )}
-                {product.isActive && product.stock > 0 ? (
+                {product.slug !== "six-cookie-gift-bag" && product.isActive && product.stock > 0 ? (
                   <button
                     type="button"
                     className="btn btn-secondary btn-sm"
@@ -447,9 +443,9 @@ export function ProductManager({ products, categories, initialFilter }: { produc
               <input id="p-price" type="number" min={0} step={1} className="field" value={draft.price} onChange={(event) => updateDraft("price", event.target.value)} required />
             </div>
             <div>
-              <label className="field-label" htmlFor="p-stock">{draft.variants.length > 0 ? "規格總庫存" : "庫存數量"}</label>
-              <input id="p-stock" type="number" min={0} step={1} className="field" value={draft.stock} onChange={(event) => updateDraft("stock", event.target.value)} disabled={draft.variants.length > 0} required />
-              {draft.variants.length > 0 ? <p className="mt-1 text-xs text-cocoa-soft">依所有啟用規格的庫存自動加總；要補貨請調整下方對應口味數量。</p> : null}
+              <label className="field-label" htmlFor="p-stock">庫存數量</label>
+              <input id="p-stock" type="number" min={0} step={1} className="field" value={draft.stock} onChange={(event) => updateDraft("stock", event.target.value)} disabled={draft.slug.trim() === "six-cookie-gift-bag"} required />
+              {draft.slug.trim() === "six-cookie-gift-bag" ? <p className="mt-1 text-xs text-cocoa-soft">禮袋數量依原味、巧克力、抹茶的剩餘庫存自動計算，請到各口味商品調整庫存。</p> : null}
             </div>
             <div className="sm:col-span-2">
               <label className="field-label" htmlFor="p-image">商品圖片</label>
@@ -549,15 +545,19 @@ export function ProductManager({ products, categories, initialFilter }: { produc
             </div>
           </div>
 
-          <fieldset className="rounded-lg border border-mist/70 p-4">
+          <fieldset className="rounded-lg border border-mist/70 p-4" disabled={draft.slug.trim() === "six-cookie-gift-bag"}>
             <legend className="px-2 text-xs tracking-[0.18em] text-caramel-deep">商品規格（選填）</legend>
-            <p className="text-xs text-cocoa-soft">例如「原味」「巧克力」「抹茶」。補貨請填各規格庫存；商品總庫存會自動加總所有啟用規格，結帳時同時扣除總庫存與所選規格庫存。</p>
+            <p className="text-xs text-cocoa-soft">例如「原味」「巧克力」「抹茶」。各規格庫存獨立設定，不會自動更改商品庫存。</p>
             <div className="mt-3 space-y-2">
               {draft.variants.map((variant, index) => (
                 <div key={index} className="grid grid-cols-[1fr_5.5rem_5rem_auto_auto] items-center gap-2">
                   <input className="field min-h-9 py-1" placeholder="規格名稱" value={variant.name} onChange={(event) => updateVariant(index, { name: event.target.value })} aria-label={`規格 ${index + 1} 名稱`} />
                   <input className="field min-h-9 py-1" type="number" step={1} placeholder="差額" value={variant.priceDelta} onChange={(event) => updateVariant(index, { priceDelta: event.target.value })} aria-label={`規格 ${index + 1} 價格差額`} />
-                  <input className="field min-h-9 py-1" type="number" min={0} step={1} placeholder="庫存" value={variant.stock} onChange={(event) => updateVariant(index, { stock: event.target.value })} aria-label={`規格 ${index + 1} 庫存`} />
+                  {draft.slug.trim() === "six-cookie-gift-bag" ? (
+                    <span className="text-[0.68rem] text-cocoa-soft">依口味庫存</span>
+                  ) : (
+                    <input className="field min-h-9 py-1" type="number" min={0} step={1} placeholder="庫存" value={variant.stock} onChange={(event) => updateVariant(index, { stock: event.target.value })} aria-label={`規格 ${index + 1} 庫存`} />
+                  )}
                   <Toggle checked={variant.isActive} onChange={(value) => updateVariant(index, { isActive: value })} label={`規格 ${index + 1} 啟用`} />
                   <button type="button" onClick={() => updateVariants((current) => current.filter((_, i) => i !== index))} className="text-xs text-[#8A4B3D] hover:underline" aria-label={`移除規格 ${index + 1}`}>
                     移除

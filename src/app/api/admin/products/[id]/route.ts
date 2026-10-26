@@ -5,6 +5,7 @@ import { isSafeImageUrl, optionalText, parseImageGallery, requireAdmin, slugify 
 import { asBool, asInt, asString, fail, ok, readJson } from "@/lib/api";
 import { logAdminAction } from "@/lib/orders";
 import { notifyProductTrackersForChange } from "@/lib/product-tracking";
+import { SIX_COOKIE_PACK_SLUG } from "@/lib/cookie-packs";
 
 export const maxDuration = 60;
 
@@ -39,6 +40,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     const existingRows = await db.select().from(products).where(eq(products.id, id)).limit(1);
     const existing = existingRows[0];
     if (!existing) return fail("找不到這個商品。", 404);
+    if (existing.slug === SIX_COOKIE_PACK_SLUG && ("stock" in body || "variants" in body)) {
+      return fail("六入禮袋沒有獨立庫存，數量依三種口味的剩餘庫存計算；請到各口味商品調整庫存。", 409);
+    }
 
     const patch: Record<string, unknown> = { updatedAt: new Date() };
 
@@ -96,6 +100,10 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     if ("pickupNote" in body) patch.pickupNote = optionalText(body.pickupNote, 500);
     if ("sortOrder" in body) patch.sortOrder = asInt(body.sortOrder, existing.sortOrder) || 0;
 
+    if ((patch.slug === SIX_COOKIE_PACK_SLUG || existing.slug === SIX_COOKIE_PACK_SLUG) && ("stock" in body || "variants" in body)) {
+      return fail("六入禮袋沒有獨立庫存，數量依三種口味的剩餘庫存計算；請到各口味商品調整庫存。", 409);
+    }
+
     const variants = "variants" in body ? parseVariants(body.variants) : null;
     if ("variants" in body && variants === null) return fail("商品規格格式不正確。");
     const previousVariants = "stock" in body || variants !== null
@@ -103,13 +111,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
         .from(productVariants)
         .where(eq(productVariants.productId, id))
       : [];
-    if ("stock" in body && !("variants" in body) && previousVariants.length > 0) {
-      return fail("此商品有獨立規格庫存，請編輯各口味庫存；系統會自動加總商品總庫存。");
-    }
     if (variants && variants.length > 0) {
-      const totalVariantStock = variants.reduce((total, variant) => total + (variant.isActive ? variant.stock : 0), 0);
-      if (totalVariantStock > 100_000) return fail("啟用規格的庫存總和不得超過 100,000 件。");
-      patch.stock = totalVariantStock;
+      if (variants.some((variant) => variant.stock > 100_000)) return fail("規格庫存不得超過 100,000 件。");
     }
     const previousVariantByName = new Map(previousVariants.map((variant) => [variant.name, variant]));
     const restockedVariants = variants?.filter((variant) => {

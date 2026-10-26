@@ -5,6 +5,7 @@ import { isSafeImageUrl, optionalText, parseImageGallery, requireAdmin, slugify 
 import { asBool, asInt, asString, fail, ok, readJson } from "@/lib/api";
 import { logAdminAction } from "@/lib/orders";
 import { getAllProductsForAdmin } from "@/lib/products";
+import { SIX_COOKIE_PACK_SLUG } from "@/lib/cookie-packs";
 
 type VariantInput = { id?: number; name: string; priceDelta: number; stock: number; isActive: boolean };
 
@@ -51,14 +52,14 @@ export async function POST(request: Request) {
 
   const variants = parseVariants(body.variants);
   if (variants === null) return fail("商品規格格式不正確。");
-  const variantStockTotal = variants.reduce((total, variant) => total + (variant.isActive ? variant.stock : 0), 0);
-  if (variantStockTotal > 100_000) return fail("啟用規格的庫存總和不得超過 100,000 件。");
-  const effectiveStock = variants.length > 0 ? variantStockTotal : stock;
   const launchAtValue = body.launchAt;
   const launchAt = launchAtValue == null || launchAtValue === "" ? null : new Date(asString(launchAtValue, 40));
   if (launchAt && Number.isNaN(launchAt.getTime())) return fail("預計上架時間格式不正確。");
 
   const slug = slugify(asString(body.slug, 80) || name);
+  if (slug === SIX_COOKIE_PACK_SLUG && (stock > 0 || variants.some((variant) => variant.stock > 0))) {
+    return fail("六入禮袋沒有獨立庫存，請先建立商品後由三種口味庫存計算可售袋數。", 409);
+  }
   const categoryId = asInt(body.categoryId);
 
   try {
@@ -72,7 +73,7 @@ export async function POST(request: Request) {
           summary: asString(body.summary, 200),
           description: asString(body.description, 4000),
           price,
-          stock: effectiveStock,
+          stock,
           isActive: asBool(body.isActive, true),
           imageUrl: imageUrl || null,
           galleryImages,

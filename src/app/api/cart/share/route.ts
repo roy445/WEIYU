@@ -3,6 +3,8 @@ import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { cartShares, productVariants, products } from "@/db/schema";
 import { clientKey, fail, ok, rateLimit, readJson } from "@/lib/api";
+import { getSixCookieVariantAvailability, SIX_COOKIE_PACK_SLUG } from "@/lib/cookie-packs";
+import { getCookieFlavorInventory } from "@/lib/products";
 
 type ShareItem = { productId: number; variantId: number | null; quantity: number };
 
@@ -74,11 +76,16 @@ export async function GET(request: Request) {
     const variantIds = items.map((item) => item.variantId).filter((id): id is number => id !== null);
     const variantRows = variantIds.length ? await db.select().from(productVariants).where(inArray(productVariants.id, variantIds)) : [];
     const variantMap = new Map(variantRows.map((variant) => [variant.id, variant]));
+    const hasCookieBag = [...productMap.values()].some((product) => product.slug === SIX_COOKIE_PACK_SLUG);
+    const cookieInventory = hasCookieBag ? await getCookieFlavorInventory() : null;
     const result = items.flatMap((item) => {
       const product = productMap.get(item.productId);
       const variant = item.variantId === null ? null : variantMap.get(item.variantId);
       if (!product || !product.isActive || product.price <= 0 || (product.launchAt && product.launchAt > new Date()) || (item.variantId !== null && (!variant || variant.productId !== product.id || !variant.isActive))) return [];
-      const stock = variant ? Math.min(product.stock, variant.stock) : product.stock;
+      if (product.slug === SIX_COOKIE_PACK_SLUG && !variant) return [];
+      const stock = product.slug === SIX_COOKIE_PACK_SLUG && cookieInventory
+        ? getSixCookieVariantAvailability(variant!.name, cookieInventory.availability)
+        : variant ? Math.min(product.stock, variant.stock) : product.stock;
       if (stock <= 0) return [];
       return [{
         productId: product.id,

@@ -1,8 +1,15 @@
 import "server-only";
 
-import { and, asc, desc, eq, ilike, or, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, or, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { categories, productVariants, products, type Product, type ProductVariant } from "@/db/schema";
+import {
+  calculateSixCookieAvailability,
+  COOKIE_FLAVOR_SLUGS,
+  getSixCookieVariantAvailability,
+  SIX_COOKIE_PACK_SLUG,
+  type CookieFlavorStocks,
+} from "@/lib/cookie-packs";
 
 export type ProductListItem = Omit<Product, "viewCount" | "cartAddCount" | "internalRecipe"> & {
   categoryName: string | null;
@@ -26,6 +33,19 @@ export type ProductDetail = {
   variants: ProductVariant[];
   isComingSoon: boolean;
 };
+
+export async function getCookieFlavorInventory() {
+  const rows = await db.select({ slug: products.slug, stock: products.stock, isActive: products.isActive })
+    .from(products)
+    .where(inArray(products.slug, Object.values(COOKIE_FLAVOR_SLUGS)));
+  const bySlug = new Map(rows.map((row) => [row.slug, row.isActive ? row.stock : 0]));
+  const stocks: CookieFlavorStocks = {
+    original: bySlug.get(COOKIE_FLAVOR_SLUGS.original) ?? 0,
+    chocolate: bySlug.get(COOKIE_FLAVOR_SLUGS.chocolate) ?? 0,
+    matcha: bySlug.get(COOKIE_FLAVOR_SLUGS.matcha) ?? 0,
+  };
+  return { stocks, availability: calculateSixCookieAvailability(stocks) };
+}
 
 export async function listCategories() {
   try {
@@ -100,9 +120,15 @@ export async function listProducts(filters: ProductFilters = {}): Promise<Produc
     const rows = conditions.length
       ? await query.where(and(...conditions)).orderBy(...orderBy)
       : await query.orderBy(...orderBy);
+    const cookieInventory = rows.some((row) => row.slug === SIX_COOKIE_PACK_SLUG)
+      ? await getCookieFlavorInventory()
+      : null;
     const now = Date.now();
     return rows.map((row) => ({
       ...row,
+      stock: row.slug === SIX_COOKIE_PACK_SLUG && cookieInventory
+        ? cookieInventory.availability.maxAvailable
+        : row.stock,
       isComingSoon: Boolean(row.launchAt && row.launchAt.getTime() > now),
     }));
   } catch {
@@ -153,11 +179,18 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
       .from(productVariants)
       .where(eq(productVariants.productId, row.product.id))
       .orderBy(asc(productVariants.sortOrder), asc(productVariants.id));
+    const cookieInventory = row.product.slug === SIX_COOKIE_PACK_SLUG ? await getCookieFlavorInventory() : null;
     return {
-      product: row.product,
+      product: cookieInventory
+        ? { ...row.product, stock: cookieInventory.availability.maxAvailable }
+        : row.product,
       categoryName: row.categoryName,
       categorySlug: row.categorySlug,
-      variants: variants.filter((variant) => variant.isActive),
+      variants: variants.filter((variant) => variant.isActive).map((variant) =>
+        cookieInventory
+          ? { ...variant, stock: getSixCookieVariantAvailability(variant.name, cookieInventory.availability) }
+          : variant,
+      ),
       isComingSoon: Boolean(row.product.launchAt && row.product.launchAt.getTime() > Date.now()),
     };
   } catch {
@@ -181,8 +214,14 @@ export async function getAllProductsForAdmin(q?: string): Promise<AdminProductLi
     ? await query.where(and(...conditions)).orderBy(desc(products.createdAt), desc(products.id))
     : await query.orderBy(desc(products.createdAt), desc(products.id));
   const now = Date.now();
+  const cookieInventory = rows.some(({ product }) => product.slug === SIX_COOKIE_PACK_SLUG)
+    ? await getCookieFlavorInventory()
+    : null;
   return rows.map(({ product, categoryName, categorySlug }) => ({
     ...product,
+    stock: product.slug === SIX_COOKIE_PACK_SLUG && cookieInventory
+      ? cookieInventory.availability.maxAvailable
+      : product.stock,
     categoryName,
     categorySlug,
     isComingSoon: Boolean(product.launchAt && product.launchAt.getTime() > now),

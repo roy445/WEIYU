@@ -19,7 +19,13 @@ import {
   users,
 } from "@/db/schema";
 import { todayInTaipei } from "./brand";
-import { isValidCustomSixCookieMix, SIX_COOKIE_CUSTOM_VARIANT, SIX_COOKIE_PACK_SLUG, SIX_COOKIE_SHOP_MIX_VARIANT } from "./cookie-packs";
+import {
+  COOKIE_FLAVOR_SLUGS,
+  getSixCookieMixForVariant,
+  isValidCustomSixCookieMix,
+  SIX_COOKIE_CUSTOM_VARIANT,
+  SIX_COOKIE_PACK_SLUG,
+} from "./cookie-packs";
 import type { SessionUser } from "./auth";
 import { addThreeMonths } from "./rewards";
 import { notifyProductTrackersForChange } from "./product-tracking";
@@ -202,7 +208,18 @@ async function runPlaceOrder(userId: number, normalized: NormalizedItem[], meta:
       throw new OrderError("這個時段已額滿，請選擇其他面交時段。", 409);
     }
 
-    const productIds = [...new Set(normalized.map((item) => item.productId))];
+    const allCookieProducts = await tx.select({ id: products.id, slug: products.slug })
+      .from(products)
+      .where(inArray(products.slug, Object.values(COOKIE_FLAVOR_SLUGS)));
+    const cookieIds = new Set(allCookieProducts.map((product) => product.id));
+    const preProductRows = await tx.select({ id: products.id, slug: products.slug })
+      .from(products)
+      .where(inArray(products.id, [...new Set(normalized.map((item) => item.productId))]));
+    const includesCookieBag = preProductRows.some((product) => product.slug === SIX_COOKIE_PACK_SLUG);
+    const productIds = [...new Set([
+      ...normalized.map((item) => item.productId),
+      ...(includesCookieBag ? [...cookieIds] : []),
+    ])].sort((a, b) => a - b);
     const variantIds = normalized
       .map((item) => item.variantId)
       .filter((value): value is number => typeof value === "number");
@@ -211,6 +228,7 @@ async function runPlaceOrder(userId: number, normalized: NormalizedItem[], meta:
       .select()
       .from(products)
       .where(inArray(products.id, productIds))
+      .orderBy(products.id)
       .for("update");
     const productMap = new Map(productRows.map((row) => [row.id, row]));
 
@@ -230,6 +248,10 @@ async function runPlaceOrder(userId: number, normalized: NormalizedItem[], meta:
       quantity: number;
       lineTotal: number;
     }[] = [];
+    const cookieProductBySlug = new Map(
+      [...productMap.values()].map((product) => [product.slug, product]),
+    );
+    const stockRequirements = new Map<number, number>();
 
     for (const item of normalized) {
       const product = productMap.get(item.productId);
@@ -247,7 +269,7 @@ async function runPlaceOrder(userId: number, normalized: NormalizedItem[], meta:
         if (!variant || variant.productId !== product.id || !variant.isActive) {
           throw new OrderError(`「${product.name}」的規格已更新，請重新選擇。`, 409);
         }
-        if (variant.stock < item.quantity) {
+        if (product.slug !== SIX_COOKIE_PACK_SLUG && variant.stock < item.quantity) {
           throw new OrderError(`「${product.name}」的所選規格庫存不足（剩餘 ${variant.stock}）。`, 409);
         }
         unitPrice += variant.priceDelta;
@@ -255,16 +277,33 @@ async function runPlaceOrder(userId: number, normalized: NormalizedItem[], meta:
       }
 
       if (product.slug === SIX_COOKIE_PACK_SLUG) {
-        if (variantName === SIX_COOKIE_CUSTOM_VARIANT) {
-          if (!isValidCustomSixCookieMix(note ?? "")) {
+        if (!item.variantId) {
+          throw new OrderError("請選擇六入曲奇的店家配或客製化口味。", 400);
+        }
+        const mix = getSixCookieMixForVariant(variantName, note ?? "");
+        if (!mix) {
+          if (variantName === SIX_COOKIE_CUSTOM_VARIANT && !isValidCustomSixCookieMix(note ?? "")) {
             throw new OrderError("六入曲奇客製化需在訂單備註填寫原味、巧克力、抹茶各幾顆；每種至少 1 顆且合計 6 顆。", 400);
           }
-        } else if (variantName !== SIX_COOKIE_SHOP_MIX_VARIANT) {
           throw new OrderError("請選擇六入曲奇的「店家配」或「客製化」口味。", 400);
+        }
+        for (const [flavor, slug] of Object.entries(COOKIE_FLAVOR_SLUGS) as [keyof typeof COOKIE_FLAVOR_SLUGS, string][]) {
+          const flavorProduct = cookieProductBySlug.get(slug);
+          if (!flavorProduct || !flavorProduct.isActive) {
+            throw new OrderError("六入曲奇有口味暫停販售，請稍後再試。", 409);
+          }
+          stockRequirements.set(
+            flavorProduct.id,
+            (stockRequirements.get(flavorProduct.id) ?? 0) + mix[flavor] * item.quantity,
+          );
         }
       }
 
-      if (product.stock < item.quantity) {
+      if (product.slug !== SIX_COOKIE_PACK_SLUG) {
+        stockRequirements.set(product.id, (stockRequirements.get(product.id) ?? 0) + item.quantity);
+      }
+
+      if (product.slug !== SIX_COOKIE_PACK_SLUG && product.stock < item.quantity) {
         throw new OrderError(
           `「${product.name}」庫存不足，目前剩餘 ${Math.max(0, product.stock)} 份。`,
           409,
@@ -282,6 +321,14 @@ async function runPlaceOrder(userId: number, normalized: NormalizedItem[], meta:
         quantity: item.quantity,
         lineTotal: unitPrice * item.quantity,
       });
+    }
+
+    for (const [productId, required] of stockRequirements) {
+      const flavorProduct = productMap.get(productId);
+      if (!flavorProduct || flavorProduct.stock < required) {
+        const name = flavorProduct?.name ?? "曲奇口味";
+        throw new OrderError(`「${name}」庫存不足，目前剩餘 ${Math.max(0, flavorProduct?.stock ?? 0)} 顆。`, 409);
+      }
     }
 
     const subtotal = lines.reduce((sum, line) => sum + line.lineTotal, 0);
@@ -348,28 +395,29 @@ async function runPlaceOrder(userId: number, normalized: NormalizedItem[], meta:
     }
 
     const stockChangeMap = new Map<number, { productId: number; oldStock: number; newStock: number }>();
-    // 扣庫存（條件式更新，避免負庫存與超賣）
-    for (const line of lines) {
-      const product = productMap.get(line.productId);
-      if (!product) throw new OrderError("有商品已不存在，請重新整理購物袋。", 409);
+    // 口味單品與六入袋共用三款單品庫存，將需求合併後按固定商品 ID 條件更新，避免超賣。
+    for (const [productId, quantity] of [...stockRequirements].sort(([a], [b]) => a - b)) {
+      const product = productMap.get(productId);
+      if (!product) throw new OrderError("有曲奇口味已不存在，請重新整理購物袋。", 409);
       const updated = await tx
         .update(products)
         .set({
-          stock: sql`${products.stock} - ${line.quantity}`,
+          stock: sql`${products.stock} - ${quantity}`,
           updatedAt: new Date(),
         })
-        .where(and(eq(products.id, line.productId), gte(products.stock, line.quantity)))
+        .where(and(eq(products.id, productId), gte(products.stock, quantity)))
         .returning({ id: products.id, stock: products.stock });
       if (updated.length === 0) {
-        throw new OrderError(`「${line.productName}」庫存不足，請調整數量。`, 409);
+        throw new OrderError(`「${product.name}」庫存不足，請調整數量。`, 409);
       }
-      const previousChange = stockChangeMap.get(line.productId);
-      stockChangeMap.set(line.productId, {
-        productId: line.productId,
-        oldStock: previousChange?.oldStock ?? product.stock,
+      stockChangeMap.set(productId, {
+        productId,
+        oldStock: product.stock,
         newStock: updated[0].stock,
       });
-      if (line.variantId) {
+    }
+    for (const line of lines) {
+      if (line.variantId && line.productSlug !== SIX_COOKIE_PACK_SLUG) {
         const updatedVariant = await tx
           .update(productVariants)
           .set({ stock: sql`${productVariants.stock} - ${line.quantity}` })
@@ -518,29 +566,52 @@ export async function applyAdminOrderAction(
         patch.cancelledAt = now;
         if (!order.stockRestored) {
           const items = await tx.select().from(orderItems).where(eq(orderItems.orderId, order.id));
+          const restoreProductStock = new Map<number, number>();
+          const restoreVariantStock = new Map<number, number>();
+          const hasCookieBag = items.some((item) => item.productSlug === SIX_COOKIE_PACK_SLUG);
+          const cookieProducts = hasCookieBag
+            ? await tx.select({ id: products.id, slug: products.slug })
+              .from(products)
+              .where(inArray(products.slug, Object.values(COOKIE_FLAVOR_SLUGS)))
+            : [];
+          const cookieProductBySlug = new Map(cookieProducts.map((product) => [product.slug, product]));
           for (const item of items) {
-            if (item.productId) {
-              const [before] = await tx.select({ stock: products.stock }).from(products).where(eq(products.id, item.productId)).limit(1);
-              const [restored] = await tx
-                .update(products)
-                .set({ stock: sql`${products.stock} + ${item.quantity}`, updatedAt: now })
-                .where(eq(products.id, item.productId))
-                .returning({ stock: products.stock });
-              if (before && restored) {
-                const previous = stockChangeMap.get(item.productId);
-                stockChangeMap.set(item.productId, {
-                  productId: item.productId,
-                  oldStock: previous?.oldStock ?? before.stock,
-                  newStock: restored.stock,
-                });
+            if (item.productSlug === SIX_COOKIE_PACK_SLUG) {
+              const mix = getSixCookieMixForVariant(item.variantName, order.customerNote ?? "");
+              if (!mix) {
+                throw new OrderError("無法依訂單記錄還原六入曲奇口味庫存，已中止取消以避免庫存錯誤。", 409);
               }
+              for (const [flavor, slug] of Object.entries(COOKIE_FLAVOR_SLUGS) as [keyof typeof COOKIE_FLAVOR_SLUGS, string][]) {
+                const flavorProduct = cookieProductBySlug.get(slug);
+                if (!flavorProduct) throw new OrderError("曲奇口味商品不存在，無法安全回補庫存。", 409);
+                restoreProductStock.set(
+                  flavorProduct.id,
+                  (restoreProductStock.get(flavorProduct.id) ?? 0) + mix[flavor] * item.quantity,
+                );
+              }
+              continue;
+            }
+            if (item.productId) {
+              restoreProductStock.set(item.productId, (restoreProductStock.get(item.productId) ?? 0) + item.quantity);
             }
             if (item.variantId) {
-              await tx
-                .update(productVariants)
-                .set({ stock: sql`${productVariants.stock} + ${item.quantity}` })
-                .where(eq(productVariants.id, item.variantId));
+              restoreVariantStock.set(item.variantId, (restoreVariantStock.get(item.variantId) ?? 0) + item.quantity);
             }
+          }
+          for (const [productId, quantity] of [...restoreProductStock].sort(([a], [b]) => a - b)) {
+            const [before] = await tx.select({ stock: products.stock }).from(products).where(eq(products.id, productId)).limit(1);
+            const [restored] = await tx.update(products)
+              .set({ stock: sql`${products.stock} + ${quantity}`, updatedAt: now })
+              .where(eq(products.id, productId))
+              .returning({ stock: products.stock });
+            if (before && restored) {
+              stockChangeMap.set(productId, { productId, oldStock: before.stock, newStock: restored.stock });
+            }
+          }
+          for (const [variantId, quantity] of [...restoreVariantStock].sort(([a], [b]) => a - b)) {
+            await tx.update(productVariants)
+              .set({ stock: sql`${productVariants.stock} + ${quantity}` })
+              .where(eq(productVariants.id, variantId));
           }
           patch.stockRestored = true;
         }
