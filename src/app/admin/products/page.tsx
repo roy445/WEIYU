@@ -31,6 +31,7 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
     ingredients: product.ingredients,
     allergens: product.allergens,
     storageInfo: product.storageInfo,
+    requiresRefrigeration: product.requiresRefrigeration,
     shelfLife: product.shelfLife,
     pickupNote: product.pickupNote,
     internalRecipe: product.internalRecipe,

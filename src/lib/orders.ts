@@ -19,6 +19,7 @@ import {
   users,
 } from "@/db/schema";
 import { todayInTaipei } from "./brand";
+import { isValidCustomSixCookieMix, SIX_COOKIE_CUSTOM_VARIANT, SIX_COOKIE_PACK_SLUG, SIX_COOKIE_SHOP_MIX_VARIANT } from "./cookie-packs";
 import type { SessionUser } from "./auth";
 import { addThreeMonths } from "./rewards";
 import { notifyProductTrackersForChange } from "./product-tracking";
@@ -251,6 +252,16 @@ async function runPlaceOrder(userId: number, normalized: NormalizedItem[], meta:
         }
         unitPrice += variant.priceDelta;
         variantName = variant.name;
+      }
+
+      if (product.slug === SIX_COOKIE_PACK_SLUG) {
+        if (variantName === SIX_COOKIE_CUSTOM_VARIANT) {
+          if (!isValidCustomSixCookieMix(note ?? "")) {
+            throw new OrderError("六入曲奇客製化需在訂單備註填寫原味、巧克力、抹茶各幾顆；每種至少 1 顆且合計 6 顆。", 400);
+          }
+        } else if (variantName !== SIX_COOKIE_SHOP_MIX_VARIANT) {
+          throw new OrderError("請選擇六入曲奇的「店家配」或「客製化」口味。", 400);
+        }
       }
 
       if (product.stock < item.quantity) {

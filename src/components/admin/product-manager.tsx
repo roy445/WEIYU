@@ -26,6 +26,7 @@ export type AdminProduct = {
   isComingSoon: boolean;
   allergens: string | null;
   storageInfo: string | null;
+  requiresRefrigeration: boolean | null;
   shelfLife: string | null;
   pickupNote: string | null;
   sortOrder: number;
@@ -51,6 +52,7 @@ type Draft = {
   launchAt: string;
   allergens: string;
   storageInfo: string;
+  requiresRefrigeration: string;
   shelfLife: string;
   pickupNote: string;
   variants: VariantDraft[];
@@ -72,6 +74,7 @@ const emptyDraft: Draft = {
   launchAt: "",
   allergens: "",
   storageInfo: "",
+  requiresRefrigeration: "",
   shelfLife: "",
   pickupNote: "",
   variants: [],
@@ -94,6 +97,7 @@ function toDraft(product: AdminProduct): Draft {
     launchAt: product.launchAt ? toDateTimeInput(product.launchAt) : "",
     allergens: product.allergens ?? "",
     storageInfo: product.storageInfo ?? "",
+    requiresRefrigeration: product.requiresRefrigeration == null ? "" : String(product.requiresRefrigeration),
     shelfLife: product.shelfLife ?? "",
     pickupNote: product.pickupNote ?? "",
     variants: product.variants.map((variant) => ({
@@ -172,6 +176,7 @@ export function ProductManager({ products, categories, initialFilter }: { produc
     launchAt: draft.launchAt ? new Date(draft.launchAt).toISOString() : null,
     allergens: draft.allergens,
     storageInfo: draft.storageInfo,
+    requiresRefrigeration: draft.requiresRefrigeration === "" ? null : draft.requiresRefrigeration === "true",
     shelfLife: draft.shelfLife,
     pickupNote: draft.pickupNote,
     variants: draft.variants.map((variant) => ({
@@ -328,6 +333,9 @@ export function ProductManager({ products, categories, initialFilter }: { produc
                   {!product.ingredients ? <span className="rounded bg-oat-soft px-1.5 py-0.5">成分待補充</span> : null}
                   {!product.allergens ? <span className="rounded bg-oat-soft px-1.5 py-0.5">過敏原待補充</span> : null}
                   {!product.storageInfo ? <span className="rounded bg-oat-soft px-1.5 py-0.5">保存方式待補充</span> : null}
+                  {product.requiresRefrigeration === true ? <span className="rounded bg-oat-soft px-1.5 py-0.5">需冷藏</span> : null}
+                  {product.requiresRefrigeration === false ? <span className="rounded bg-oat-soft px-1.5 py-0.5">不需冷藏</span> : null}
+                  {product.requiresRefrigeration == null ? <span className="rounded bg-oat-soft px-1.5 py-0.5">冷藏需求待確認</span> : null}
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2 sm:justify-end">
@@ -469,12 +477,22 @@ export function ProductManager({ products, categories, initialFilter }: { produc
               <textarea id="p-allergens" className="field min-h-20" value={draft.allergens} onChange={(event) => updateDraft("allergens", event.target.value)} />
             </div>
             <div>
-              <label className="field-label" htmlFor="p-storage">保存方式</label>
-              <input id="p-storage" className="field" value={draft.storageInfo} onChange={(event) => updateDraft("storageInfo", event.target.value)} />
+              <label className="field-label" htmlFor="p-refrigeration">是否需冷藏</label>
+              <select id="p-refrigeration" className="field" value={draft.requiresRefrigeration} onChange={(event) => updateDraft("requiresRefrigeration", event.target.value)}>
+                <option value="">尚未確認</option>
+                <option value="true">需要冷藏</option>
+                <option value="false">不需冷藏（常溫）</option>
+              </select>
+              <p className="mt-1 text-xs text-cocoa-soft">未確認時前台會顯示「待補充」，不會替你推測。</p>
             </div>
             <div>
-              <label className="field-label" htmlFor="p-shelf">賞味期限</label>
-              <input id="p-shelf" className="field" value={draft.shelfLife} onChange={(event) => updateDraft("shelfLife", event.target.value)} />
+              <label className="field-label" htmlFor="p-storage">保存方式補充說明</label>
+              <input id="p-storage" className="field" value={draft.storageInfo} onChange={(event) => updateDraft("storageInfo", event.target.value)} placeholder="例：冷藏 4°C 保存，取貨後請儘速冷藏" />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="field-label" htmlFor="p-shelf">賞味期限（請以天為單位）</label>
+              <input id="p-shelf" className="field" value={draft.shelfLife} onChange={(event) => updateDraft("shelfLife", event.target.value)} placeholder="例：常溫 3 天內／冷藏 5 天內" />
+              <p className="mt-1 text-xs text-cocoa-soft">建議格式：保存狀態＋天數，例如「常溫 3 天內」或「冷藏 5 天內」；若開封後期限不同，請一併註明。</p>
             </div>
             <div className="sm:col-span-2">
               <label className="field-label" htmlFor="p-pickup">取貨說明</label>

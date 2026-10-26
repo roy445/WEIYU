@@ -12,11 +12,16 @@ type DialogProps = {
 
 export function Dialog({ open, title, onClose, children, wide = false }: DialogProps) {
   const panelRef = useRef<HTMLDivElement | null>(null);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") onCloseRef.current();
     };
     document.addEventListener("keydown", onKeyDown);
     const previous = document.body.style.overflow;
@@ -29,7 +34,7 @@ export function Dialog({ open, title, onClose, children, wide = false }: DialogP
       document.body.style.overflow = previous;
       window.clearTimeout(timer);
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 

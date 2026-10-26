@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { formatPrice } from "@/lib/brand";
 import { recordProductMetric } from "@/lib/product-metrics";
+import { SIX_COOKIE_CUSTOM_VARIANT, SIX_COOKIE_PACK_SLUG } from "@/lib/cookie-packs";
 import { useStore } from "./store-provider";
 
 type Variant = { id: number; name: string; priceDelta: number; stock: number };
@@ -95,6 +96,12 @@ export function ProductPurchase({ product, variants }: Props) {
             })}
           </div>
         </fieldset>
+      ) : null}
+
+      {product.slug === SIX_COOKIE_PACK_SLUG && variant?.name === SIX_COOKIE_CUSTOM_VARIANT ? (
+        <p className="rounded-lg border border-caramel/30 bg-oat-soft/40 px-4 py-3 text-xs leading-relaxed text-cocoa">
+          請在結帳「訂單備註」填寫每袋配比，例如「原味 2、巧克力 1、抹茶 3」。每種至少 1 顆、合計 6 顆；未填或數量不符將無法成立訂單。若買多袋，此配比會套用到每一袋。
+        </p>
       ) : null}
 
       <div>

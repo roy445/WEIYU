@@ -3,10 +3,10 @@ import type { ReactNode } from "react";
 import { BRAND } from "@/lib/brand";
 import "./globals.css";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://weiyu.vercel.app";
 
 export const metadata: Metadata = {
-  ...(siteUrl ? { metadataBase: new URL(siteUrl) } : {}),
+  metadataBase: new URL(siteUrl),
   title: {
     default: `${BRAND.nameEn}｜${BRAND.nameZh} — ${BRAND.tagline}`,
     template: `%s｜${BRAND.nameEn} ${BRAND.nameZh}`,
@@ -16,6 +16,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "zh_TW",
+    url: siteUrl,
     siteName: `${BRAND.nameEn}｜${BRAND.nameZh}`,
     title: `${BRAND.nameEn}｜${BRAND.nameZh} — ${BRAND.tagline}`,
     description: BRAND.description,

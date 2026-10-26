@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { formatDate, formatPrice } from "@/lib/brand";
 import type { AvailableSlot } from "@/lib/settings";
+import { SIX_COOKIE_CUSTOM_VARIANT, SIX_COOKIE_PACK_SLUG } from "@/lib/cookie-packs";
 import { SafeImage } from "./safe-image";
 import { useStore } from "./store-provider";
 
@@ -118,6 +119,7 @@ export function CheckoutForm({ user, slots, acceptingOrders }: Props) {
 
   const selectedLocation = locations.find((item) => item.id === locationId) ?? null;
   const selectedSlot = slots.find((slot) => slot.id === slotId) ?? null;
+  const hasCustomSixCookiePack = lines.some((line) => line.slug === SIX_COOKIE_PACK_SLUG && line.variantName === SIX_COOKIE_CUSTOM_VARIANT);
   const canSubmit =
     acceptingOrders &&
     slots.length > 0 &&
@@ -356,6 +358,11 @@ export function CheckoutForm({ user, slots, acceptingOrders }: Props) {
           <h2 id="checkout-note" className="text-2xl">
             訂單備註
           </h2>
+          {hasCustomSixCookiePack ? (
+            <p className="mt-3 rounded-lg border border-caramel/30 bg-oat-soft/40 px-4 py-3 text-xs leading-relaxed text-cocoa">
+              你選了六入曲奇客製化。請按每袋填寫原味、巧克力、抹茶數量，例如「原味 2、巧克力 1、抹茶 3」；三種各至少 1 顆、合計 6 顆。多袋會套用相同配比，未填或格式／數量不符將無法送出。
+            </p>
+          ) : null}
           <textarea
             id="order-note"
             className="field mt-4 min-h-28"

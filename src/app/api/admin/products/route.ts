@@ -78,6 +78,7 @@ export async function POST(request: Request) {
           launchAt,
           allergens: optionalText(body.allergens, 1000),
           storageInfo: optionalText(body.storageInfo, 1000),
+          requiresRefrigeration: body.requiresRefrigeration == null ? null : asBool(body.requiresRefrigeration, false),
           shelfLife: optionalText(body.shelfLife, 200),
           pickupNote: optionalText(body.pickupNote, 500),
           sortOrder: asInt(body.sortOrder, 0) || 0,

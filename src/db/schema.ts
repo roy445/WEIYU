@@ -152,6 +152,7 @@ export const products = pgTable(
     launchAt: timestamp("launch_at", { withTimezone: true }),
     allergens: text("allergens"),
     storageInfo: text("storage_info"),
+    requiresRefrigeration: boolean("requires_refrigeration"),
     shelfLife: text("shelf_life"),
     pickupNote: text("pickup_note"),
     sortOrder: integer("sort_order").notNull().default(0),

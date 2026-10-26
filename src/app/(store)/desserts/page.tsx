@@ -69,6 +69,7 @@ function DessertFeature({
         <dl className="mt-6 grid gap-x-6 gap-y-4 border-t border-mist/60 pt-5 sm:grid-cols-2">
           <Info label="成分" value={product.ingredients} />
           <Info label="過敏原" value={product.allergens} />
+          <Info label="是否需冷藏" value={product.requiresRefrigeration === null ? null : product.requiresRefrigeration ? "是" : "否"} />
           <Info label="保存方式" value={product.storageInfo} />
           <Info label="賞味期限" value={product.shelfLife} />
         </dl>

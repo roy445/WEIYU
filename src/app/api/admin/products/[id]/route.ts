@@ -89,6 +89,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     }
     if ("allergens" in body) patch.allergens = optionalText(body.allergens, 1000);
     if ("storageInfo" in body) patch.storageInfo = optionalText(body.storageInfo, 1000);
+    if ("requiresRefrigeration" in body) patch.requiresRefrigeration = body.requiresRefrigeration == null ? null : asBool(body.requiresRefrigeration, existing.requiresRefrigeration ?? false);
     if ("shelfLife" in body) patch.shelfLife = optionalText(body.shelfLife, 200);
     if ("pickupNote" in body) patch.pickupNote = optionalText(body.pickupNote, 500);
     if ("sortOrder" in body) patch.sortOrder = asInt(body.sortOrder, existing.sortOrder) || 0;

@@ -30,20 +30,28 @@ export async function generateMetadata({ params, searchParams }: { params: Param
     : null;
   const description = shareDescription ?? (detail.product.summary || `${detail.product.name} — 唯遇甜所手作甜點`);
   const title = `${detail.product.name}｜WEIYU 唯遇甜所`;
+  const shareUrl = `/products/${slug}${isProductShareSeed(shareSeed) ? `?share=${encodeURIComponent(shareSeed)}` : ""}`;
+  const sourceImageUrl = detail.product.imageUrl;
+  const imageUrl = sourceImageUrl?.startsWith("/images/products/") && /\.webp(?:[?#]|$)/i.test(sourceImageUrl)
+    ? sourceImageUrl.replace(/\.webp(?=[?#]|$)/i, "-social.jpg")
+    : sourceImageUrl;
 
   return {
     title: detail.product.name,
     description,
     openGraph: {
+      type: "website",
+      siteName: "WEIYU 唯遇甜所",
+      url: shareUrl,
       title,
       description,
-      images: detail.product.imageUrl ? [{ url: detail.product.imageUrl, alt: `${detail.product.name} 示意圖片` }] : undefined,
+      images: imageUrl ? [{ url: imageUrl, alt: `${detail.product.name} 商品圖片` }] : undefined,
     },
     twitter: {
       card: detail.product.imageUrl ? "summary_large_image" : "summary",
       title,
       description,
-      images: detail.product.imageUrl ? [detail.product.imageUrl] : undefined,
+      images: imageUrl ? [imageUrl] : undefined,
     },
   };
 }
@@ -155,6 +163,7 @@ export default async function ProductPage({ params }: { params: Params }) {
             <dl className="mt-2">
               <InfoRow label="成分" value={product.ingredients} />
               <InfoRow label="過敏原" value={product.allergens} />
+              <InfoRow label="是否需冷藏" value={product.requiresRefrigeration === null ? null : product.requiresRefrigeration ? "是" : "否"} />
               <InfoRow label="保存方式" value={product.storageInfo} />
               <InfoRow label="賞味期限" value={product.shelfLife} />
               <InfoRow label="取貨說明" value={product.pickupNote ?? "面交取貨，取貨時付款。"} />
