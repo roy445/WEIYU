@@ -151,7 +151,7 @@ export function ProductPurchase({ product, variants }: Props) {
           disabled={soldOut}
           className={`btn flex-1 ${justAdded ? "btn-dark" : "btn-primary"}`}
         >
-          {pricePending ? "價格確認後開放購買" : soldOut ? "目前無法購買" : justAdded ? "已加入購物袋 ✓" : `加入購物袋 · ${formatPrice(unitPrice * quantity)}`}
+          {pricePending ? "價格確認後開放購買" : soldOut ? (product.isActive && available <= 0 ? "缺貨中" : "目前無法購買") : justAdded ? "已加入購物袋 ✓" : `加入購物袋 · ${formatPrice(unitPrice * quantity)}`}
         </button>
       </div>
       <p className="text-xs leading-relaxed text-cocoa-soft">
