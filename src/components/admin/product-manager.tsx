@@ -88,7 +88,9 @@ function toDraft(product: AdminProduct): Draft {
     summary: product.summary,
     description: product.description,
     price: String(product.price),
-    stock: String(product.stock),
+    stock: String(product.variants.length
+      ? product.variants.reduce((total, variant) => total + (variant.isActive ? variant.stock : 0), 0)
+      : product.stock),
     isActive: product.isActive,
     imageUrl: product.imageUrl ?? "",
     galleryImages: product.galleryImages.join("\n"),
@@ -125,6 +127,8 @@ export function ProductManager({ products, categories, initialFilter }: { produc
   const [pending, setPending] = useState(false);
   const [uploadPending, setUploadPending] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [retryingTrackingId, setRetryingTrackingId] = useState<number | null>(null);
+  const [stockDrafts, setStockDrafts] = useState<Record<number, string>>({});
   const [confirmDelete, setConfirmDelete] = useState<AdminProduct | null>(null);
 
   const visible = useMemo(() => {
@@ -214,10 +218,25 @@ export function ProductManager({ products, categories, initialFilter }: { produc
     const result = await apiRequest(`/api/admin/products/${product.id}`, { method: "PATCH", body: JSON.stringify(patch) });
     setBusyId(null);
     if (!result.ok) {
+      if (typeof patch.stock === "number") setStockDrafts((current) => { const next = { ...current }; delete next[product.id]; return next; });
       toast(result.data.error ?? "操作失敗。", "error");
       return;
     }
+    if (typeof patch.stock === "number") setStockDrafts((current) => { const next = { ...current }; delete next[product.id]; return next; });
     toast(result.data.message ?? successMessage, result.data.notificationWarning ? "info" : "success");
+    router.refresh();
+  };
+
+  const retryTrackingEmail = async (product: AdminProduct) => {
+    if (!window.confirm(`要補寄「${product.name}」最近一次補貨的追蹤 Email 嗎？只會寄給已同意 Email 通知、且該批郵件尚未成功送達的追蹤會員。`)) return;
+    setRetryingTrackingId(product.id);
+    const result = await apiRequest<{ message?: string; sent?: number; failed?: number }>(`/api/admin/products/${product.id}/tracking-email`, { method: "POST" });
+    setRetryingTrackingId(null);
+    if (!result.ok) {
+      toast(result.data.error ?? "補寄追蹤 Email 失敗。", "error");
+      return;
+    }
+    toast(result.data.message ?? "補寄流程完成。", result.data.failed ? "error" : "success");
     router.refresh();
   };
 
@@ -236,11 +255,15 @@ export function ProductManager({ products, categories, initialFilter }: { produc
 
   const updateDraft = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((current) => ({ ...current, [key]: value }));
 
+  const updateVariants = (update: (current: VariantDraft[]) => VariantDraft[]) =>
+    setDraft((current) => {
+      const variants = update(current.variants);
+      const stock = variants.reduce((total, variant) => total + (variant.isActive ? Math.max(0, Number(variant.stock) || 0) : 0), 0);
+      return { ...current, variants, stock: String(stock) };
+    });
+
   const updateVariant = (index: number, patch: Partial<VariantDraft>) =>
-    setDraft((current) => ({
-      ...current,
-      variants: current.variants.map((variant, i) => (i === index ? { ...variant, ...patch } : variant)),
-    }));
+    updateVariants((current) => current.map((variant, i) => (i === index ? { ...variant, ...patch } : variant)));
 
   const uploadImage = async (file: File | undefined) => {
     if (!file) return;
@@ -317,15 +340,19 @@ export function ProductManager({ products, categories, initialFilter }: { produc
                 <SafeImage src={product.imageUrl} alt={`${product.name} 圖片`} sizes="80px" className="object-cover" />
               </div>
               <div className="min-w-0 flex-1">
+                {(() => {
+                  const displayStock = product.stock;
+                  return (
+                    <>
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-medium text-cocoa">{product.name}</p>
                   <span className={`badge ${product.isActive ? "bg-[#E4EDE4] text-[#3F5B41]" : "bg-oat text-cocoa"}`}>
                     {!product.isActive ? "已下架" : product.isComingSoon ? "即將上架" : "上架中"}
                   </span>
-                  {product.stock <= 0 && !product.isComingSoon ? <span className="badge bg-[#EFE4E1] text-[#8A4B3D]">缺貨</span> : null}
+                  {displayStock <= 0 && !product.isComingSoon ? <span className="badge bg-[#EFE4E1] text-[#8A4B3D]">缺貨</span> : null}
                 </div>
                 <p className="mt-1 text-xs text-cocoa-soft">
-                  /{product.slug} · {product.categoryName ?? "未分類"} · {formatPrice(product.price)} · 庫存 {product.stock}
+                  /{product.slug} · {product.categoryName ?? "未分類"} · {formatPrice(product.price)} · 庫存 {displayStock}
                   {product.launchAt ? ` · 預計上架 ${new Intl.DateTimeFormat("zh-TW", { timeZone: "Asia/Taipei", month: "numeric", day: "numeric", weekday: "short" }).format(product.launchAt)}` : ""}
                   {product.variants.length > 0 ? ` · ${product.variants.length} 種規格` : ""}
                 </p>
@@ -337,25 +364,46 @@ export function ProductManager({ products, categories, initialFilter }: { produc
                   {product.requiresRefrigeration === false ? <span className="rounded bg-oat-soft px-1.5 py-0.5">不需冷藏</span> : null}
                   {product.requiresRefrigeration == null ? <span className="rounded bg-oat-soft px-1.5 py-0.5">冷藏需求待確認</span> : null}
                 </div>
+                    </>
+                  );
+                })()}
               </div>
               <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                <label className="flex items-center gap-2 text-xs text-cocoa-soft">
-                  庫存
-                  <input
-                    type="number"
-                    min={0}
-                    defaultValue={product.stock}
-                    key={`${product.id}-${product.stock}`}
-                    className="field w-20 min-h-9 py-1 text-center"
-                    aria-label={`${product.name} 庫存`}
-                    onBlur={(event) => {
-                      const next = Number(event.target.value);
-                      if (Number.isInteger(next) && next >= 0 && next !== product.stock) {
-                        void quickPatch(product, { stock: next }, `「${product.name}」庫存已更新為 ${next}。`);
-                      }
-                    }}
-                  />
-                </label>
+                {product.variants.length > 0 ? (
+                  <span className="text-xs text-cocoa-soft">規格總庫存 {product.stock} · 請在「編輯」調整各口味</span>
+                ) : (
+                  <label className="flex items-center gap-2 text-xs text-cocoa-soft">
+                    庫存
+                    <input
+                      type="number"
+                      min={0}
+                      value={stockDrafts[product.id] ?? String(product.stock)}
+                      className="field w-20 min-h-9 py-1 text-center"
+                      aria-label={`${product.name} 庫存`}
+                      disabled={busyId === product.id}
+                      onChange={(event) => setStockDrafts((current) => ({ ...current, [product.id]: event.target.value }))}
+                      onBlur={(event) => {
+                        const raw = event.currentTarget.value.trim();
+                        const next = Number(raw);
+                        if (raw && Number.isInteger(next) && next >= 0 && next !== product.stock) {
+                          void quickPatch(product, { stock: next }, `「${product.name}」庫存已更新為 ${next}。`);
+                        } else {
+                          setStockDrafts((current) => { const updated = { ...current }; delete updated[product.id]; return updated; });
+                        }
+                      }}
+                    />
+                  </label>
+                )}
+                {product.isActive && product.stock > 0 ? (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    disabled={retryingTrackingId === product.id || busyId === product.id}
+                    onClick={() => void retryTrackingEmail(product)}
+                  >
+                    {retryingTrackingId === product.id ? "補寄中…" : "補寄補貨 Email"}
+                  </button>
+                ) : null}
                 <Toggle
                   checked={product.isActive}
                   disabled={busyId === product.id}
@@ -399,8 +447,9 @@ export function ProductManager({ products, categories, initialFilter }: { produc
               <input id="p-price" type="number" min={0} step={1} className="field" value={draft.price} onChange={(event) => updateDraft("price", event.target.value)} required />
             </div>
             <div>
-              <label className="field-label" htmlFor="p-stock">庫存數量</label>
-              <input id="p-stock" type="number" min={0} step={1} className="field" value={draft.stock} onChange={(event) => updateDraft("stock", event.target.value)} required />
+              <label className="field-label" htmlFor="p-stock">{draft.variants.length > 0 ? "規格總庫存" : "庫存數量"}</label>
+              <input id="p-stock" type="number" min={0} step={1} className="field" value={draft.stock} onChange={(event) => updateDraft("stock", event.target.value)} disabled={draft.variants.length > 0} required />
+              {draft.variants.length > 0 ? <p className="mt-1 text-xs text-cocoa-soft">依所有啟用規格的庫存自動加總；要補貨請調整下方對應口味數量。</p> : null}
             </div>
             <div className="sm:col-span-2">
               <label className="field-label" htmlFor="p-image">商品圖片</label>
@@ -502,7 +551,7 @@ export function ProductManager({ products, categories, initialFilter }: { produc
 
           <fieldset className="rounded-lg border border-mist/70 p-4">
             <legend className="px-2 text-xs tracking-[0.18em] text-caramel-deep">商品規格（選填）</legend>
-            <p className="text-xs text-cocoa-soft">例如「單顆」「六入盒」。規格差額可為負數；規格庫存與商品總庫存都會檢查。</p>
+            <p className="text-xs text-cocoa-soft">例如「原味」「巧克力」「抹茶」。補貨請填各規格庫存；商品總庫存會自動加總所有啟用規格，結帳時同時扣除總庫存與所選規格庫存。</p>
             <div className="mt-3 space-y-2">
               {draft.variants.map((variant, index) => (
                 <div key={index} className="grid grid-cols-[1fr_5.5rem_5rem_auto_auto] items-center gap-2">
@@ -510,13 +559,13 @@ export function ProductManager({ products, categories, initialFilter }: { produc
                   <input className="field min-h-9 py-1" type="number" step={1} placeholder="差額" value={variant.priceDelta} onChange={(event) => updateVariant(index, { priceDelta: event.target.value })} aria-label={`規格 ${index + 1} 價格差額`} />
                   <input className="field min-h-9 py-1" type="number" min={0} step={1} placeholder="庫存" value={variant.stock} onChange={(event) => updateVariant(index, { stock: event.target.value })} aria-label={`規格 ${index + 1} 庫存`} />
                   <Toggle checked={variant.isActive} onChange={(value) => updateVariant(index, { isActive: value })} label={`規格 ${index + 1} 啟用`} />
-                  <button type="button" onClick={() => updateDraft("variants", draft.variants.filter((_, i) => i !== index))} className="text-xs text-[#8A4B3D] hover:underline" aria-label={`移除規格 ${index + 1}`}>
+                  <button type="button" onClick={() => updateVariants((current) => current.filter((_, i) => i !== index))} className="text-xs text-[#8A4B3D] hover:underline" aria-label={`移除規格 ${index + 1}`}>
                     移除
                   </button>
                 </div>
               ))}
             </div>
-            <button type="button" onClick={() => updateDraft("variants", [...draft.variants, { name: "", priceDelta: "0", stock: "0", isActive: true }])} className="btn btn-secondary btn-sm mt-3">
+            <button type="button" onClick={() => updateVariants((current) => [...current, { name: "", priceDelta: "0", stock: "0", isActive: true }])} className="btn btn-secondary btn-sm mt-3">
               ＋ 新增規格
             </button>
           </fieldset>

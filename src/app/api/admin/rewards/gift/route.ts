@@ -5,6 +5,9 @@ import { requireAdmin } from "@/lib/admin";
 import { asInt, asString, fail, ok, readJson } from "@/lib/api";
 import { addThreeMonths } from "@/lib/rewards";
 import { logAdminAction } from "@/lib/orders";
+import { sendCouponGiftEmail } from "@/lib/email";
+
+export const maxDuration = 60;
 
 export async function POST(request: Request) {
   const admin = await requireAdmin();
@@ -16,7 +19,10 @@ export async function POST(request: Request) {
   const userId = asInt(body.userId);
   const couponId = asInt(body.couponId);
   const pointsAmount = asInt(body.pointsAmount);
+  const sendEmail = body.sendEmail === true;
+  const emailReviewed = body.emailReviewed === true;
   if (!["points", "coupon"].includes(kind)) return fail("請選擇贈送甜甜數或優惠券。");
+  if (sendEmail && (kind !== "coupon" || !emailReviewed)) return fail("請先預覽優惠券 Email 格式並確認後再贈送。");
   if (!["member", "all"].includes(audience)) return fail("贈送對象不正確。");
   if (audience === "member" && (!Number.isSafeInteger(userId) || userId <= 0)) return fail("請選擇一位會員。");
   if (kind === "coupon" && (!Number.isSafeInteger(couponId) || couponId <= 0)) return fail("請選擇已建立的優惠券。");
@@ -36,8 +42,8 @@ export async function POST(request: Request) {
       }
 
       const candidateRows = audience === "all"
-        ? await tx.select({ id: users.id, createdAt: users.createdAt }).from(users).where(eq(users.role, "customer")).limit(10_001)
-        : await tx.select({ id: users.id, createdAt: users.createdAt }).from(users).where(and(eq(users.id, userId), eq(users.role, "customer")));
+        ? await tx.select({ id: users.id, email: users.email, createdAt: users.createdAt }).from(users).where(eq(users.role, "customer")).limit(10_001)
+        : await tx.select({ id: users.id, email: users.email, createdAt: users.createdAt }).from(users).where(and(eq(users.id, userId), eq(users.role, "customer")));
       if (audience === "all" && candidateRows.length > 10_000) throw new Error("會員人數超出單次贈送上限（10,000 位），請改為分批操作。");
       if (audience === "member" && candidateRows.length === 0) throw new Error("找不到這位會員。");
 
@@ -70,6 +76,7 @@ export async function POST(request: Request) {
       const recipientIds = recipientRows.map((row) => row.id);
       if (recipientIds.length === 0) throw new Error("目前沒有可接收贈禮的會員。");
       if (recipientIds.length > 10_000) throw new Error("會員人數超出單次贈送上限（10,000 位），請改為分批操作。");
+      if (sendEmail && recipientIds.length > 200) throw new Error("已符合資格的會員超過 Email 單次寄送上限（200 位）；請縮小收件對象，優惠券未贈送。");
 
       const now = new Date();
       const announcementTitle = kind === "points" ? "你收到一份甜甜數贈禮" : `你收到優惠券：${coupon!.title}`;
@@ -140,13 +147,57 @@ export async function POST(request: Request) {
         })));
       }
 
-      return { count: recipientIds.length, announcementId: announcement.id };
+      return {
+        count: recipientIds.length,
+        announcementId: announcement.id,
+        recipients: recipientRows.map((recipient) => ({ id: recipient.id, email: recipient.email })),
+        couponForEmail: coupon ? {
+          id: coupon.id,
+          title: coupon.title,
+          code: coupon.code,
+          type: coupon.type,
+          value: coupon.value,
+          minimumSubtotal: coupon.minimumSubtotal,
+          maxDiscount: coupon.maxDiscount,
+          expiresAt: coupon.expiresAt,
+        } : null,
+      };
     });
 
     await logAdminAction(admin, "rewards.gift", "announcement", result.announcementId, `${audience === "all" ? "全體會員" : `會員 ${userId}`} 收到${kind === "points" ? `${pointsAmount} 點甜甜數` : `優惠券 ${couponId}`}（${result.count} 位）`);
+    let emailSent = 0;
+    let emailFailed = 0;
+    if (sendEmail && result.couponForEmail) {
+      for (let offset = 0; offset < result.recipients.length; offset += 3) {
+        const batch = result.recipients.slice(offset, offset + 3);
+        const results = await Promise.all(batch.map(async (recipient) => {
+          try {
+            await sendCouponGiftEmail(recipient.email, result.couponForEmail!, result.announcementId);
+            await db.update(announcementNotifications)
+              .set({ emailSentAt: new Date(), emailError: null })
+              .where(and(eq(announcementNotifications.announcementId, result.announcementId), eq(announcementNotifications.userId, recipient.id)));
+            return true;
+          } catch (error) {
+            const message = error instanceof Error ? error.message.slice(0, 500) : "unknown";
+            console.error("Coupon gift reminder email failed", { announcementId: result.announcementId, userId: recipient.id, message });
+            await db.update(announcementNotifications)
+              .set({ emailError: message })
+              .where(and(eq(announcementNotifications.announcementId, result.announcementId), eq(announcementNotifications.userId, recipient.id)))
+              .catch(() => undefined);
+            return false;
+          }
+        }));
+        emailSent += results.filter(Boolean).length;
+        emailFailed += results.length - results.filter(Boolean).length;
+      }
+    }
     return ok({
-      message: `已贈送給 ${result.count} 位會員，站內通知已送達。`,
+      message: sendEmail
+        ? `已贈送給 ${result.count} 位會員並送出站內通知；Email ${emailSent} 封成功${emailFailed ? `、${emailFailed} 封失敗` : ""}。`
+        : `已贈送給 ${result.count} 位會員，站內通知已送達。`,
       recipientCount: result.count,
+      emailSent,
+      emailFailed,
     }, 201);
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
@@ -158,6 +209,7 @@ export async function POST(request: Request) {
       "這位會員已領取或使用過此優惠券。",
       "目前沒有符合資格且未領取過此優惠券的會員。",
       "目前沒有可接收贈禮的會員。",
+      "已符合資格的會員超過 Email 單次寄送上限（200 位）；請縮小收件對象，優惠券未贈送。",
     ].includes(message) || message.startsWith("剩餘可領取數量不足") || message.startsWith("會員人數超出")) {
       return fail(message, 409);
     }

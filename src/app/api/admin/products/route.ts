@@ -51,6 +51,9 @@ export async function POST(request: Request) {
 
   const variants = parseVariants(body.variants);
   if (variants === null) return fail("商品規格格式不正確。");
+  const variantStockTotal = variants.reduce((total, variant) => total + (variant.isActive ? variant.stock : 0), 0);
+  if (variantStockTotal > 100_000) return fail("啟用規格的庫存總和不得超過 100,000 件。");
+  const effectiveStock = variants.length > 0 ? variantStockTotal : stock;
   const launchAtValue = body.launchAt;
   const launchAt = launchAtValue == null || launchAtValue === "" ? null : new Date(asString(launchAtValue, 40));
   if (launchAt && Number.isNaN(launchAt.getTime())) return fail("預計上架時間格式不正確。");
@@ -69,7 +72,7 @@ export async function POST(request: Request) {
           summary: asString(body.summary, 200),
           description: asString(body.description, 4000),
           price,
-          stock,
+          stock: effectiveStock,
           isActive: asBool(body.isActive, true),
           imageUrl: imageUrl || null,
           galleryImages,

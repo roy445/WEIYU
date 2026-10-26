@@ -206,6 +206,7 @@ ${product.summary ? `<p style="font-size:14px;line-height:1.8;color:#6f5545">${e
 export async function sendProductTrackingEmail(
   to: string,
   product: { name: string; slug: string; changes: string[] },
+  eventId?: number,
 ): Promise<void> {
   const { siteUrl } = getEmailConfig();
   const productUrl = `${siteUrl}/products/${encodeURIComponent(product.slug)}`;
@@ -213,7 +214,34 @@ export async function sendProductTrackingEmail(
 <ul style="font-size:14px;line-height:1.9;color:#6f5545">${product.changes.map((change) => `<li>${escapeHtml(change)}</li>`).join("")}</ul>
 <p style="margin:26px 0"><a href="${escapeHtml(productUrl)}" style="display:inline-block;border-radius:999px;background:#a8754a;padding:13px 24px;color:#fffaf3;text-decoration:none;font-size:14px">查看商品</a></p>
 <p style="font-size:12px;line-height:1.7;color:#6f5545">這封通知只因你主動追蹤此商品而寄出。你可在商品頁關閉追蹤或 Email 通知。</p>`;
-  await sendBrandedEmail(to, `商品追蹤通知｜${product.name}`, `${product.name} 商品資訊更新`, body, `會員追蹤商品更新通知：${product.name}`);
+  const reason = eventId
+    ? `會員追蹤商品更新通知：${product.name}｜事件 #${eventId}`
+    : `會員追蹤商品更新通知：${product.name}`;
+  await sendBrandedEmail(to, `商品追蹤通知｜${product.name}`, `${product.name} 商品資訊更新`, body, reason);
+}
+
+export async function sendCouponGiftEmail(
+  to: string,
+  coupon: { id: number; title: string; code: string; type: string; value: number; minimumSubtotal: number; maxDiscount: number | null; expiresAt: Date },
+  giftEventId: number,
+): Promise<void> {
+  const { siteUrl } = getEmailConfig();
+  const isPoints = coupon.type === "points";
+  const expiry = new Intl.DateTimeFormat("zh-TW", { timeZone: "Asia/Taipei", dateStyle: "long" }).format(coupon.expiresAt);
+  const benefit = coupon.type === "points"
+    ? `此券已兌換為 ${coupon.value} 點甜甜數，點數已放入你的帳戶。`
+    : coupon.type === "percent"
+      ? `可享 ${coupon.value}% 折扣，最高折抵 NT$${coupon.maxDiscount ?? 1_000_000}。`
+      : `可折抵 NT$${coupon.value}。`;
+  const minimum = coupon.minimumSubtotal > 0 ? `消費滿 NT$${coupon.minimumSubtotal} 可使用。` : "";
+  const description = isPoints
+    ? `店家送你的 ${coupon.value} 點甜甜數已加入帳戶。登入會員中心即可查看點數餘額與使用期限。`
+    : `親愛的甜點好友，店家已將「${escapeHtml(coupon.title)}」放入你的會員帳戶。${escapeHtml(benefit)}${escapeHtml(minimum)}請於 ${escapeHtml(expiry)} 前使用。`;
+  const accountUrl = `${siteUrl}${isPoints ? "/account" : "/account/coupons"}`;
+  const body = `<p style="font-size:15px;line-height:1.9;color:#6f5545">${description}</p>
+<p style="margin:26px 0"><a href="${escapeHtml(accountUrl)}" style="display:inline-block;border-radius:999px;background:#a8754a;padding:13px 24px;color:#fffaf3;text-decoration:none;font-size:14px">${isPoints ? "查看我的甜甜數" : "查看我的優惠券"}</a></p>
+${isPoints ? "" : `<p style="font-size:12px;line-height:1.7;color:#6f5545">優惠券已直接放入帳戶，結帳時請在「使用優惠券」選擇，不需要手動輸入代碼。優惠券代碼：${escapeHtml(coupon.code)}</p>`}`;
+  await sendBrandedEmail(to, isPoints ? `你收到甜甜數贈禮｜${coupon.title}` : `你收到優惠券｜${coupon.title}`, isPoints ? "一份甜甜數心意，已放入你的帳戶" : "一份甜點小心意，送給你", body, `店家贈送優惠券 #${coupon.id}｜贈送事件 #${giftEventId}`);
 }
 
 export async function sendOrderEmail(orderId: number, kind: "created" | "status"): Promise<void> {

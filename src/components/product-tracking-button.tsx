@@ -22,7 +22,7 @@ export function ProductTrackingButton({ productId, slug }: { productId: number; 
         return response.ok && data.ok ? { isTracking: Boolean(data.isTracking), emailEnabled: Boolean(data.emailEnabled) } : null;
       })
       .then((data) => {
-        if (active && data) setState(data);
+        if (active && data) setState(data.isTracking ? data : { isTracking: false, emailEnabled: true });
       })
       .catch(() => undefined)
       .finally(() => {
@@ -68,7 +68,7 @@ export function ProductTrackingButton({ productId, slug }: { productId: number; 
         toast(data.error ?? "無法關閉商品追蹤。", "error");
         return;
       }
-      setState({ isTracking: false, emailEnabled: false });
+      setState({ isTracking: false, emailEnabled: true });
       toast("已關閉商品追蹤。");
     } catch {
       toast("網路或伺服器發生問題，請稍後再試。", "error");
@@ -81,10 +81,10 @@ export function ProductTrackingButton({ productId, slug }: { productId: number; 
   return (
     <div className="mt-4 rounded-lg border border-mist bg-cream/70 p-4">
       <p className="text-sm font-medium text-cocoa">{state.isTracking ? "你正在追蹤此商品" : "商品價格與庫存提醒"}</p>
-      <p className="mt-1 text-xs leading-relaxed text-cocoa-soft">開啟後，商品降價、補貨、庫存降至 2 件或售罄時會收到會員中心通知。追蹤由你自行開啟，可隨時關閉。</p>
+      <p className="mt-1 text-xs leading-relaxed text-cocoa-soft">開啟後，商品降價、補貨、庫存降至 2 件或售罄時會收到會員中心通知。新開追蹤預選 Email 自動提醒；既有設定不變，追蹤與 Email 均可隨時關閉。</p>
       <label className="mt-3 flex items-start gap-2 text-xs text-cocoa-soft">
         <input type="checkbox" checked={state.emailEnabled} onChange={(event) => setState((current) => ({ ...current, emailEnabled: event.target.checked }))} disabled={pending} />
-        <span>同意同時以 Email 接收上述商品通知。</span>
+        <span>同意在價格或庫存變動時自動寄送 Email 提醒（包含補貨）。</span>
       </label>
       <div className="mt-3 flex flex-wrap gap-2">
         <button className="btn btn-secondary btn-sm" type="button" disabled={pending} onClick={() => void save(state.emailEnabled)}>

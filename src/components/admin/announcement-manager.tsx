@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useState, type FormEvent } from "react";
 import { useStore } from "@/components/store-provider";
 import { apiRequest } from "./dialog";
@@ -49,7 +50,8 @@ export function AnnouncementManager({ announcements }: { announcements: Announce
   const [body, setBody] = useState("");
   const [type, setType] = useState<"info" | "important" | "promotion">("info");
   const [displayMode, setDisplayMode] = useState<"inbox" | "marquee" | "pinned">("inbox");
-  const [sendEmail, setSendEmail] = useState(true);
+  const [sendEmail, setSendEmail] = useState(false);
+  const [emailReviewed, setEmailReviewed] = useState(false);
   const [pending, setPending] = useState(false);
   const [retryingId, setRetryingId] = useState<number | null>(null);
 
@@ -57,14 +59,16 @@ export function AnnouncementManager({ announcements }: { announcements: Announce
     setTitle(sample.title);
     setBody(sample.body);
     setType(sample.type);
+    setEmailReviewed(false);
   };
 
   const publish = async (event: FormEvent) => {
     event.preventDefault();
+    if (sendEmail && !emailReviewed) return;
     setPending(true);
     const result = await apiRequest("/api/admin/announcements", {
       method: "POST",
-      body: JSON.stringify({ title, body, type, displayMode, sendEmail }),
+      body: JSON.stringify({ title, body, type, displayMode, sendEmail, emailReviewed }),
     });
     setPending(false);
     if (!result.ok) {
@@ -78,6 +82,8 @@ export function AnnouncementManager({ announcements }: { announcements: Announce
     setBody("");
     setType("info");
     setDisplayMode("inbox");
+    setSendEmail(false);
+    setEmailReviewed(false);
     router.refresh();
   };
 
@@ -102,7 +108,7 @@ export function AnnouncementManager({ announcements }: { announcements: Announce
           <p className="eyebrow">New announcement</p>
           <h2 className="mt-2 text-2xl">發布公告</h2>
           <p className="mt-2 text-sm leading-relaxed text-cocoa-soft">
-            發布後會立即出現在會員的站內通知；勾選 Email 也會寄送給目前已註冊的會員。
+            發布後會立即出現在會員的站內通知。若也要寄 Email，請先勾選寄送選項、預覽內容並確認；未勾選時只會建立站內通知。
           </p>
         </div>
 
@@ -117,7 +123,7 @@ export function AnnouncementManager({ announcements }: { announcements: Announce
         <form onSubmit={publish} className="mt-6 grid gap-4">
           <label className="block">
             <span className="field-label">公告標題</span>
-            <input className="field" value={title} onChange={(event) => setTitle(event.target.value)} maxLength={100} minLength={2} required />
+              <input className="field" value={title} onChange={(event) => { setTitle(event.target.value); setEmailReviewed(false); }} maxLength={100} minLength={2} required />
           </label>
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block">
@@ -137,17 +143,39 @@ export function AnnouncementManager({ announcements }: { announcements: Announce
               </select>
             </label>
             <label className="flex items-center gap-3 rounded-lg border border-mist/70 px-4 py-3 text-sm text-cocoa">
-              <input type="checkbox" checked={sendEmail} onChange={(event) => setSendEmail(event.target.checked)} className="accent-caramel" />
-              同時寄送 Email 給會員
+              <input type="checkbox" checked={sendEmail} onChange={(event) => { setSendEmail(event.target.checked); setEmailReviewed(false); }} className="accent-caramel" />
+              詢問並確認後，同時寄送提醒 Email 給會員
             </label>
           </div>
           <label className="block">
             <span className="field-label">公告內容</span>
-            <textarea className="field min-h-36 resize-y" value={body} onChange={(event) => setBody(event.target.value)} maxLength={3000} required />
+            <textarea className="field min-h-36 resize-y" value={body} onChange={(event) => { setBody(event.target.value); setEmailReviewed(false); }} maxLength={3000} required />
             <span className="mt-1 block text-right text-xs text-cocoa-soft">{body.length}/3000</span>
           </label>
+          {sendEmail ? (
+            <div className="space-y-3 rounded-xl border border-mist/70 bg-cream/50 p-4 sm:p-5">
+              <p className="text-sm font-medium text-cocoa">寄送前 Email 格式預覽</p>
+              <div className="mx-auto max-w-xl overflow-hidden rounded-xl border border-mist bg-[#fffdf8]">
+                <div className="border-b border-mist bg-cream-deep/40 px-4 py-3 text-xs text-cocoa-soft">Email 主旨：WEIYU 公告｜{title || "（公告標題）"}</div>
+                <div className="p-5">
+                  <div className="border-b border-mist pb-3 text-center">
+                    <Image src="/brand/email-logo.png" alt="WEIYU 唯遇甜所" width={76} height={76} className="mx-auto h-16 w-16 object-contain" />
+                    <p className="mt-2 font-serif text-xs tracking-[0.2em] text-caramel-deep">WEIYU 唯遇甜所</p>
+                  </div>
+                  <h3 className="mt-4 font-serif text-xl text-cocoa">{title || "（公告標題）"}</h3>
+                  <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-relaxed text-cocoa-soft">{body || "（公告內容）"}</p>
+                  <p className="mt-4 rounded-full bg-caramel px-4 py-2 text-center text-sm text-cream">查看站內公告</p>
+                  <p className="mt-4 border-t border-mist pt-3 text-xs leading-relaxed text-cocoa-soft">此郵件由 WEIYU 唯遇甜所自動寄出。若有疑問，請透過網站聯絡方式與我們聯繫。</p>
+                </div>
+              </div>
+              <label className="flex items-start gap-2 text-sm leading-relaxed text-cocoa">
+                <input type="checkbox" checked={emailReviewed} onChange={(event) => setEmailReviewed(event.target.checked)} className="mt-1 accent-caramel" />
+                我已審閱上方郵件格式與公告內容，確認要寄給會員；內容變更後需重新確認。
+              </label>
+            </div>
+          ) : null}
           <div>
-            <button className="btn btn-primary" type="submit" disabled={pending}>
+            <button className="btn btn-primary" type="submit" disabled={pending || (sendEmail && !emailReviewed)}>
               {pending ? "發布中…" : "立即發布"}
             </button>
           </div>

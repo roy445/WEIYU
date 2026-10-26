@@ -8,6 +8,8 @@ import { asString, fail, ok, readJson } from "@/lib/api";
 const TYPES = new Set(["info", "important", "promotion"]);
 const DISPLAY_MODES = new Set(["inbox", "marquee", "pinned"]);
 
+export const maxDuration = 60;
+
 export async function GET() {
   const admin = await requireAdmin();
   if (!admin) return fail("需要管理員權限。", 403);
@@ -42,7 +44,8 @@ export async function POST(request: Request) {
   const announcementBody = asString(body.body, 3000);
   const type = asString(body.type, 20);
   const displayMode = asString(body.displayMode, 20);
-  const sendEmail = typeof body.sendEmail === "boolean" ? body.sendEmail : true;
+  const sendEmail = body.sendEmail === true;
+  if (sendEmail && body.emailReviewed !== true) return fail("請先預覽 Email 格式並確認後再發布。", 400);
 
   if (title.length < 2) return fail("公告標題至少需要 2 個字。");
   if (!announcementBody) return fail("請填寫公告內容。");

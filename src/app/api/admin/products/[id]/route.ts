@@ -6,6 +6,8 @@ import { asBool, asInt, asString, fail, ok, readJson } from "@/lib/api";
 import { logAdminAction } from "@/lib/orders";
 import { notifyProductTrackersForChange } from "@/lib/product-tracking";
 
+export const maxDuration = 60;
+
 type VariantInput = { name: string; priceDelta: number; stock: number; isActive: boolean };
 
 function parseVariants(value: unknown): VariantInput[] | null {
@@ -96,6 +98,25 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
 
     const variants = "variants" in body ? parseVariants(body.variants) : null;
     if ("variants" in body && variants === null) return fail("商品規格格式不正確。");
+    const previousVariants = "stock" in body || variants !== null
+      ? await db.select({ name: productVariants.name, stock: productVariants.stock, isActive: productVariants.isActive })
+        .from(productVariants)
+        .where(eq(productVariants.productId, id))
+      : [];
+    if ("stock" in body && !("variants" in body) && previousVariants.length > 0) {
+      return fail("此商品有獨立規格庫存，請編輯各口味庫存；系統會自動加總商品總庫存。");
+    }
+    if (variants && variants.length > 0) {
+      const totalVariantStock = variants.reduce((total, variant) => total + (variant.isActive ? variant.stock : 0), 0);
+      if (totalVariantStock > 100_000) return fail("啟用規格的庫存總和不得超過 100,000 件。");
+      patch.stock = totalVariantStock;
+    }
+    const previousVariantByName = new Map(previousVariants.map((variant) => [variant.name, variant]));
+    const restockedVariants = variants?.filter((variant) => {
+      if (!variant.isActive || variant.stock <= 0) return false;
+      const previous = previousVariantByName.get(variant.name);
+      return Boolean(previous && (!previous.isActive || previous.stock <= 0));
+    }).map((variant) => variant.name) ?? [];
 
     await db.transaction(async (tx) => {
       await tx.update(products).set(patch).where(eq(products.id, id));
@@ -126,12 +147,21 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     const alert = await notifyProductTrackersForChange(id, {
       ...(typeof patch.price === "number" && patch.price !== existing.price ? { oldPrice: existing.price, newPrice: patch.price } : {}),
       ...(typeof patch.stock === "number" && patch.stock !== existing.stock ? { oldStock: existing.stock, newStock: patch.stock } : {}),
+      ...(restockedVariants.length > 0 ? { restockedVariants } : {}),
       isActive: typeof patch.isActive === "boolean" ? patch.isActive : existing.isActive,
     });
     const notificationWarning = alert.warning ?? (alert.emailFailed > 0 ? `商品已更新，${alert.emailFailed} 封追蹤通知 Email 寄送失敗。` : undefined);
+    const stockChanged = typeof patch.stock === "number" && patch.stock !== existing.stock;
+    const resultMessage = stockChanged && alert.notificationCount > 0
+      ? `商品已更新；已建立 ${alert.notificationCount} 位會員的站內提醒，${alert.emailEligible} 位同意接收 Email、自動寄送 ${alert.emailSent} 封成功${alert.emailFailed ? `、${alert.emailFailed} 封失敗` : ""}（僅依會員 Email 同意設定寄送）。`
+      : notificationWarning ? `商品已更新。${notificationWarning}` : "商品已更新。";
     return ok({
-      message: notificationWarning ? `商品已更新。${notificationWarning}` : "商品已更新。",
+      message: resultMessage,
       notificationWarning,
+      notificationCount: alert.notificationCount,
+      emailEligible: alert.emailEligible,
+      emailSent: alert.emailSent,
+      emailFailed: alert.emailFailed,
     });
   } catch (error) {
     const message = error instanceof Error && error.message.includes("unique") ? "商品網址代稱重複，請更換。" : "更新商品失敗，請再試一次。";

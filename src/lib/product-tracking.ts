@@ -10,6 +10,7 @@ type ProductChange = {
   newPrice?: number;
   oldStock?: number;
   newStock?: number;
+  restockedVariants?: string[];
   isActive?: boolean;
 };
 
@@ -19,7 +20,7 @@ export async function notifyProductTrackersForChange(productId: number, change: 
     changes.push(`價格由 NT$${change.oldPrice} 降至 NT$${change.newPrice}。`);
   }
   if (change.oldStock !== undefined && change.newStock !== undefined) {
-    if (change.oldStock === 0 && change.newStock > 0) {
+    if (change.oldStock === 0 && change.newStock > 0 && !change.restockedVariants?.length) {
       changes.push("商品已補貨，現在有庫存。");
     } else if (change.oldStock > 0 && change.newStock === 0) {
       changes.push("商品目前已售罄。");
@@ -27,14 +28,17 @@ export async function notifyProductTrackersForChange(productId: number, change: 
       changes.push(`商品庫存偏低，目前剩餘 ${change.newStock} 件。`);
     }
   }
-  if (!changes.length || change.isActive === false) return { notificationCount: 0, emailFailed: 0 };
+  if (change.restockedVariants?.length) {
+    changes.push(`${change.restockedVariants.join("、")} 口味已補貨，現在可以選擇。`);
+  }
+  if (!changes.length || change.isActive === false) return { notificationCount: 0, emailEligible: 0, emailSent: 0, emailFailed: 0 };
 
   try {
     const [product] = await db.select({ name: products.name, slug: products.slug })
       .from(products)
       .where(eq(products.id, productId))
       .limit(1);
-    if (!product) return { notificationCount: 0, emailFailed: 0 };
+    if (!product) return { notificationCount: 0, emailEligible: 0, emailSent: 0, emailFailed: 0 };
     const recipients = await db.select({
       userId: productTrackers.userId,
       email: users.email,
@@ -43,7 +47,7 @@ export async function notifyProductTrackersForChange(productId: number, change: 
       .from(productTrackers)
       .innerJoin(users, eq(users.id, productTrackers.userId))
       .where(eq(productTrackers.productId, productId));
-    if (!recipients.length) return { notificationCount: 0, emailFailed: 0 };
+    if (!recipients.length) return { notificationCount: 0, emailEligible: 0, emailSent: 0, emailFailed: 0 };
 
     const title = `商品追蹤提醒｜${product.name}`;
     const [announcement] = await db.transaction(async (tx) => {
@@ -66,28 +70,38 @@ export async function notifyProductTrackersForChange(productId: number, change: 
       return inserted;
     });
 
-    let emailFailed = 0;
     const emailRecipients = recipients.filter((recipient) => recipient.emailEnabled);
+    let emailSent = 0;
+    let emailFailed = 0;
     for (let offset = 0; offset < emailRecipients.length; offset += 3) {
       const batch = emailRecipients.slice(offset, offset + 3);
       const results = await Promise.all(batch.map(async (recipient) => {
         try {
-          await sendProductTrackingEmail(recipient.email, { ...product, changes });
-          return true;
+          await sendProductTrackingEmail(recipient.email, { ...product, changes }, announcement.id);
+          await db.update(announcementNotifications)
+            .set({ emailSentAt: new Date(), emailError: null })
+            .where(and(eq(announcementNotifications.announcementId, announcement.id), eq(announcementNotifications.userId, recipient.userId)));
+          return { sent: true };
         } catch (error) {
+          const message = error instanceof Error ? error.message.slice(0, 500) : "unknown";
           console.error("Product tracking email failed", {
             announcementId: announcement.id,
             userId: recipient.userId,
-            error: error instanceof Error ? error.message : "unknown",
+            error: message,
           });
-          return false;
+          await db.update(announcementNotifications)
+            .set({ emailError: message })
+            .where(and(eq(announcementNotifications.announcementId, announcement.id), eq(announcementNotifications.userId, recipient.userId)))
+            .catch(() => undefined);
+          return { sent: false };
         }
       }));
-      emailFailed += results.filter((sent) => !sent).length;
+      emailSent += results.filter((result) => result.sent).length;
+      emailFailed += results.filter((result) => !result.sent).length;
     }
-    return { notificationCount: recipients.length, emailFailed };
+    return { notificationCount: recipients.length, emailEligible: emailRecipients.length, emailSent, emailFailed };
   } catch (error) {
     console.error("Product tracking notification creation failed", error instanceof Error ? error.message : "unknown");
-    return { notificationCount: 0, emailFailed: 0, warning: "商品已更新，但部分追蹤通知未能建立，請檢查伺服器記錄。" };
+    return { notificationCount: 0, emailEligible: 0, emailSent: 0, emailFailed: 0, warning: "商品已更新，但追蹤通知未能完整建立，請檢查伺服器記錄。" };
   }
 }
