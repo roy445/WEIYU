@@ -1,9 +1,9 @@
 export const membershipTiers = [
-  { name: "新會員", minimumSpend: 0 },
-  { name: "小甜心", minimumSpend: 3_000 },
-  { name: "吃貨", minimumSpend: 8_000 },
-  { name: "甜點達人", minimumSpend: 15_000 },
-  { name: "甜點收藏家", minimumSpend: 30_000 },
+  { name: "初遇", minimumSpend: 0 },
+  { name: "甜友", minimumSpend: 3_000 },
+  { name: "熟客", minimumSpend: 8_000 },
+  { name: "知味", minimumSpend: 15_000 },
+  { name: "唯遇珍藏", minimumSpend: 30_000 },
 ] as const;
 
 export function getMembershipTier(completedSpend: number) {
