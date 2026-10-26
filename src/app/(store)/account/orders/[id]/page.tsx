@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { orderItems, orders } from "@/db/schema";
+import { adminActionLogs, orderItems, orders, users } from "@/db/schema";
 import { SafeImage } from "@/components/safe-image";
 import { PrintButton } from "@/components/print-button";
 import { OrderStatusBadge, PaymentStatusBadge } from "@/components/status-badge";
+import { OrderHistoryTimeline, type OrderHistoryEvent } from "@/components/order-history-timeline";
 import { getCurrentUser } from "@/lib/auth";
 import { formatDate, formatDateTime, formatPrice } from "@/lib/brand";
 
@@ -35,6 +36,66 @@ export default async function OrderDetailPage({ params, searchParams }: Props) {
   const order = rows[0];
   if (!order) notFound();
   const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id));
+
+  const historyActions = ["confirm", "complete", "cancel", "mark_paid", "mark_unpaid", "mark_refunded"] as const;
+  const historyRows = await db
+    .select({
+      action: adminActionLogs.action,
+      createdAt: adminActionLogs.createdAt,
+      operatorName: users.name,
+    })
+    .from(adminActionLogs)
+    .leftJoin(users, eq(adminActionLogs.adminId, users.id))
+    .where(and(
+      eq(adminActionLogs.targetType, "order"),
+      eq(adminActionLogs.targetId, String(order.id)),
+      inArray(adminActionLogs.action, [...historyActions]),
+    ))
+    .orderBy(asc(adminActionLogs.createdAt));
+
+  const historyLabels: Record<(typeof historyActions)[number], string> = {
+    confirm: "店家已接單",
+    complete: "訂單已完成",
+    cancel: "訂單已取消",
+    mark_paid: "已完成付款",
+    mark_unpaid: "付款狀態更新為未付款",
+    mark_refunded: "已登記退款",
+  };
+  const history: OrderHistoryEvent[] = [{
+    key: "created",
+    label: "訂單成立",
+    at: order.createdAt,
+    actor: "你",
+    kind: "member",
+  }];
+
+  for (const [index, row] of historyRows.entries()) {
+    const action = row.action as (typeof historyActions)[number];
+    history.push({
+      key: `action-${index}`,
+      label: historyLabels[action],
+      at: row.createdAt,
+      actor: row.operatorName ?? "店家夥伴",
+      kind: "store",
+    });
+  }
+
+  const addOlderMilestone = (action: (typeof historyActions)[number], label: string, at: Date | null) => {
+    if (at && !historyRows.some((row) => row.action === action)) {
+      history.push({
+        key: `older-${action}`,
+        label,
+        at,
+        actor: "店家（舊紀錄未保留姓名）",
+        kind: "store",
+      });
+    }
+  };
+  addOlderMilestone("confirm", "店家已接單", order.confirmedAt);
+  addOlderMilestone("complete", "訂單已完成", order.completedAt);
+  addOlderMilestone("mark_paid", "已完成付款", order.paidAt);
+  addOlderMilestone("cancel", "訂單已取消", order.cancelledAt);
+  history.sort((left, right) => left.at.getTime() - right.at.getTime());
 
   const currentIndex = timeline.findIndex((step) => step.key === order.status);
 
@@ -106,6 +167,8 @@ export default async function OrderDetailPage({ params, searchParams }: Props) {
           這筆訂單已取消。{order.adminNote ? `店家備註：${order.adminNote}` : ""}
         </p>
       )}
+
+      <OrderHistoryTimeline events={history} />
 
       <div className="mt-10 grid gap-10 lg:grid-cols-[1.2fr_0.8fr]">
         <section aria-labelledby="items-heading">
