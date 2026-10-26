@@ -145,6 +145,17 @@ export async function sendBrandedEmail(to: string, subject: string, title: strin
   }
 }
 
+export async function sendManualEmail(to: string, subject: string, title: string, plainTextBody: string, reason: string): Promise<void> {
+  const safeBody = plainTextBody
+    .replace(/\r\n?/g, "\n")
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+    .map((paragraph) => `<p style="font-size:15px;line-height:1.9;color:#6f5545;white-space:pre-wrap">${escapeHtml(paragraph).replace(/\n/g, "<br>")}</p>`)
+    .join("");
+  await sendBrandedEmail(to, subject, title, safeBody, reason);
+}
+
 export async function sendPasswordResetEmail(to: string, token: string): Promise<void> {
   const { siteUrl } = getEmailConfig();
   const resetUrl = `${siteUrl}/reset-password?token=${encodeURIComponent(token)}`;
