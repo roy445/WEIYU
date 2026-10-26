@@ -10,23 +10,40 @@ import { ShareButton } from "@/components/share-button";
 import { ProductTrackingButton } from "@/components/product-tracking-button";
 import { Reveal } from "@/components/reveal";
 import { getProductBySlug } from "@/lib/products";
+import { getProductShareMessage, isProductShareSeed } from "@/lib/product-share";
 import { formatLaunchDate } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
 
 type Params = Promise<{ slug: string }>;
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
-export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
-  const { slug } = await params;
+export async function generateMetadata({ params, searchParams }: { params: Params; searchParams: SearchParams }): Promise<Metadata> {
+  const [{ slug }, query] = await Promise.all([params, searchParams]);
   const detail = await getProductBySlug(slug);
   if (!detail) return { title: "找不到商品" };
+
+  const rawShareSeed = query.share;
+  const shareSeed = Array.isArray(rawShareSeed) ? rawShareSeed[0] : rawShareSeed;
+  const shareDescription = isProductShareSeed(shareSeed)
+    ? getProductShareMessage(detail.product.name, shareSeed)
+    : null;
+  const description = shareDescription ?? (detail.product.summary || `${detail.product.name} — 唯遇甜所手作甜點`);
+  const title = `${detail.product.name}｜WEIYU 唯遇甜所`;
+
   return {
     title: detail.product.name,
-    description: detail.product.summary || `${detail.product.name} — 唯遇甜所手作甜點`,
+    description,
     openGraph: {
-      title: `${detail.product.name}｜WEIYU 唯遇甜所`,
-      description: detail.product.summary,
+      title,
+      description,
       images: detail.product.imageUrl ? [{ url: detail.product.imageUrl, alt: `${detail.product.name} 示意圖片` }] : undefined,
+    },
+    twitter: {
+      card: detail.product.imageUrl ? "summary_large_image" : "summary",
+      title,
+      description,
+      images: detail.product.imageUrl ? [detail.product.imageUrl] : undefined,
     },
   };
 }
