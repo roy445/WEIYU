@@ -140,7 +140,7 @@ $env:BASE_URL="http://localhost:3000"; $env:ADMIN_EMAIL="you@example.com"; $env:
 - 註冊須分別勾選同意服務條款及確認已閱讀隱私權告知；伺服器會拒絕未同意的註冊，並記錄各自的確認時間。
 - 前台說明已分成 `/ordering`、`/pickup`、`/faq`、`/privacy`、`/terms` 獨立頁面；頁尾可分別前往。
 - 會員中心可上傳頭像、裁切與縮放；頭像圖片儲存至 Cloudinary，需設定 `CLOUDINARY_CLOUD_NAME`、`CLOUDINARY_API_KEY`、`CLOUDINARY_API_SECRET`。
-- 帳號啟用、忘記密碼及訂單成立／狀態通知透過 SMTP 寄送。請在 `.env` 設定 `SMTP_HOST`、`SMTP_PORT`、`SMTP_SECURE`、`SMTP_USER`、`SMTP_PASSWORD`、`SMTP_FROM_EMAIL`、`SMTP_FROM_NAME`，並設定公開可連線的 `NEXT_PUBLIC_SITE_URL`。Gmail 請使用應用程式密碼；Email 以內嵌附件顯示品牌圖，避免依賴收件端載入外部圖片。啟用信會提醒使用者檢查垃圾郵件，並將寄件者標示為非垃圾郵件；仍需為寄件網域正確設定 SPF、DKIM、DMARC，無法由網站保證信件進收件匣。
+- 帳號啟用、忘記密碼及訂單成立／狀態通知透過 SMTP 寄送。請在 `.env` 設定 `SMTP_HOST`、`SMTP_PORT`、`SMTP_SECURE`、`SMTP_USER`、`SMTP_PASSWORD`、`SMTP_FROM_EMAIL`、`SMTP_FROM_NAME`，並設定公開可連線的 `NEXT_PUBLIC_SITE_URL`。Gmail 請使用應用程式密碼；郵件本文透過公開圖片網址載入 LOGO，不會將 LOGO 作為附件寄送。可在商店設定使用網站相對路徑或 HTTPS 自訂 LOGO；未指定時使用內建輕量郵件版 LOGO。部分收件端會預設封鎖外部圖片，收件者可能需要允許載入圖片。啟用信會提醒使用者檢查垃圾郵件；仍需為寄件網域正確設定 SPF、DKIM、DMARC，無法由網站保證信件進收件匣。
 - 訂單狀態更新後會自動寄送通知；訂單詳情頁亦可手動重寄。若 SMTP 寄送失敗，訂單狀態仍會保存，後台會提示失敗並可稍後重寄。
 
 商品圖片可在後台商品管理中新增或更新；會員頭像使用 Cloudinary。
