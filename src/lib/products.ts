@@ -1,6 +1,7 @@
 import "server-only";
 
 import { and, asc, desc, eq, ilike, inArray, or, type SQL } from "drizzle-orm";
+import { cache } from "react";
 import { db } from "@/db";
 import { categories, productVariants, products, type Product, type ProductVariant } from "@/db/schema";
 import {
@@ -136,7 +137,7 @@ export async function listProducts(filters: ProductFilters = {}): Promise<Produc
   }
 }
 
-export async function getProductBySlug(slug: string): Promise<ProductDetail | null> {
+export const getProductBySlug = cache(async (slug: string): Promise<ProductDetail | null> => {
   try {
     const rows = await db
       .select({
@@ -196,7 +197,7 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
   } catch {
     return null;
   }
-}
+});
 
 export async function getAllProductsForAdmin(q?: string): Promise<AdminProductListItem[]> {
   const conditions: SQL[] = [];

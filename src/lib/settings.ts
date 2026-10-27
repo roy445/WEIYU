@@ -1,6 +1,7 @@
 import "server-only";
 
-import { and, eq, gte, isNotNull, ne, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNotNull, ne, sql } from "drizzle-orm";
+import { cache } from "react";
 import { db } from "@/db";
 import { orders, pickupLocations, pickupSlots, shopSettings, type ShopSettings } from "@/db/schema";
 import { todayInTaipei } from "./brand";
@@ -24,14 +25,14 @@ export const DEFAULT_SETTINGS: ShopSettings = {
   updatedAt: new Date(0),
 };
 
-export async function getShopSettings(): Promise<ShopSettings> {
+export const getShopSettings = cache(async (): Promise<ShopSettings> => {
   try {
     const rows = await db.select().from(shopSettings).where(eq(shopSettings.id, 1)).limit(1);
     return rows[0] ?? DEFAULT_SETTINGS;
   } catch {
     return DEFAULT_SETTINGS;
   }
-}
+});
 
 export type AvailableSlot = {
   id: number;
@@ -81,7 +82,11 @@ export async function getAvailableSlots(): Promise<AvailableSlot[]> {
         used: sql<number>`count(*)::int`,
       })
       .from(orders)
-      .where(and(isNotNull(orders.pickupSlotId), ne(orders.status, "cancelled")))
+      .where(and(
+        isNotNull(orders.pickupSlotId),
+        ne(orders.status, "cancelled"),
+        inArray(orders.pickupSlotId, rows.map((row) => row.id)),
+      ))
       .groupBy(orders.pickupSlotId);
 
     const usedMap = new Map<number, number>();

@@ -2,6 +2,7 @@ import "server-only";
 
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
+import { cache } from "react";
 import { and, eq, gt, isNotNull, isNull, lte, ne } from "drizzle-orm";
 import { db } from "@/db";
 import { emailVerificationTokens, passwordResetTokens, sessions, users } from "@/db/schema";
@@ -160,7 +161,7 @@ export async function revokeOtherSessions(userId: number): Promise<void> {
   await db.delete(sessions).where(and(eq(sessions.userId, userId), ne(sessions.id, hashToken(token))));
 }
 
-export async function getCurrentUser(): Promise<SessionUser | null> {
+export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
   try {
     const store = await cookies();
     const token = store.get(SESSION_COOKIE)?.value;
@@ -201,7 +202,7 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
   } catch {
     return null;
   }
-}
+});
 
 export function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);

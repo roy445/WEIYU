@@ -1,6 +1,7 @@
 import "server-only";
 
 import { and, asc, eq, gt, sql } from "drizzle-orm";
+import { cache } from "react";
 import { db } from "@/db";
 import { adminActionLogs, coupons, orderPointUses, orders, pointLots, userCoupons } from "@/db/schema";
 
@@ -168,12 +169,18 @@ export function addThreeMonths(from: Date): Date {
   return result;
 }
 
-export async function getPointsBalance(userId: number, at = new Date()): Promise<number> {
+async function queryPointsBalance(userId: number, at: Date): Promise<number> {
   const rows = await db
     .select({ balance: sql<number>`coalesce(sum(${pointLots.remaining}), 0)::int` })
     .from(pointLots)
     .where(and(eq(pointLots.userId, userId), gt(pointLots.remaining, 0), gt(pointLots.expiresAt, at)));
   return Number(rows[0]?.balance ?? 0);
+}
+
+const getRequestPointsBalance = cache((userId: number) => queryPointsBalance(userId, new Date()));
+
+export function getPointsBalance(userId: number, at?: Date): Promise<number> {
+  return at === undefined ? getRequestPointsBalance(userId) : queryPointsBalance(userId, at);
 }
 
 export async function getPointsSummary(userId: number, at = new Date()) {
