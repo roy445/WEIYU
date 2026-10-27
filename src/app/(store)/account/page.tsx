@@ -8,8 +8,9 @@ import { LogoutButton } from "@/components/auth-forms";
 import { PasswordForm } from "@/components/password-form";
 import { ProfileForm } from "@/components/profile-form";
 import { OrderStatusBadge, PaymentStatusBadge } from "@/components/status-badge";
+import { CouponTicket, type CouponDisplay } from "@/components/coupon-ticket";
 import { getCurrentUser } from "@/lib/auth";
-import { getPointsBalance } from "@/lib/rewards";
+import { getAvailableCoupons, getPointsBalance } from "@/lib/rewards";
 import { formatDate, formatDateTime, formatPrice } from "@/lib/brand";
 import { formatMembershipSpend, getMembershipTier } from "@/lib/membership";
 
@@ -22,15 +23,21 @@ export default async function AccountPage() {
 
   let myOrders: (typeof orders.$inferSelect)[] = [];
   let loadError = false;
+  let pointsError = false;
+  let couponsError = false;
   let pointsBalance = 0;
-  try {
-    [myOrders, pointsBalance] = await Promise.all([
-      db.select().from(orders).where(eq(orders.userId, user.id)).orderBy(desc(orders.createdAt)),
-      getPointsBalance(user.id),
-    ]);
-  } catch {
-    loadError = true;
-  }
+  let availableCoupons: CouponDisplay[] = [];
+  const [ordersResult, pointsResult, couponsResult] = await Promise.allSettled([
+    db.select().from(orders).where(eq(orders.userId, user.id)).orderBy(desc(orders.createdAt)),
+    getPointsBalance(user.id),
+    getAvailableCoupons(user.id),
+  ]);
+  if (ordersResult.status === "fulfilled") myOrders = ordersResult.value;
+  else loadError = true;
+  if (pointsResult.status === "fulfilled") pointsBalance = pointsResult.value;
+  else pointsError = true;
+  if (couponsResult.status === "fulfilled") availableCoupons = couponsResult.value;
+  else couponsError = true;
   const completedSpend = myOrders
     .filter((order) => order.status === "completed")
     .reduce((total, order) => total + order.total, 0);
@@ -44,9 +51,10 @@ export default async function AccountPage() {
           <h1 className="mt-4 text-4xl">會員中心</h1>
           <p className="mt-2 text-sm text-cocoa-soft">你好，{user.name}。這裡可以查看訂單進度與更新聯絡資料。</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2 sm:gap-3">
           <Link href="/account/favorites" className="btn btn-secondary btn-sm">我的收藏</Link>
-          <Link href="/account/coupons" className="btn btn-secondary btn-sm">甜甜數 {pointsBalance} · 優惠券</Link>
+          <Link href="/account/points" className="btn btn-secondary btn-sm">甜甜數 {pointsError ? "" : pointsBalance}</Link>
+          <Link href="/account/coupons" className="btn btn-secondary btn-sm">優惠券</Link>
           {user.role === "admin" ? (
             <Link href="/admin" className="btn btn-dark btn-sm">
               前往管理後台
@@ -56,13 +64,47 @@ export default async function AccountPage() {
         </div>
       </div>
 
+      <div className="mt-8 grid gap-5 xl:grid-cols-[0.7fr_1.3fr]">
+        <section aria-labelledby="account-points-heading" className="surface rounded-lg p-6 sm:p-7">
+          <p className="eyebrow">Sweet points</p>
+          <h2 id="account-points-heading" className="mt-2 text-2xl">甜甜數</h2>
+          <p className="mt-4 flex items-baseline gap-2 font-serif text-4xl text-[#356b46]">
+            {pointsError ? <span className="text-base text-cocoa-soft">暫時無法讀取</span> : <>{pointsBalance}<span className="text-sm">點可用</span></>}
+          </p>
+          <p className="mt-2 text-sm leading-relaxed text-cocoa-soft">甜甜數獨立累積，可在結帳時折抵；批次來源與到期日請至甜甜數專頁查看。</p>
+          <Link href="/account/points" className="btn btn-secondary btn-sm mt-5">查看甜甜數明細</Link>
+        </section>
+
+        <section aria-labelledby="account-coupons-heading" className="surface rounded-lg p-6 sm:p-7">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="eyebrow">Coupon collection</p>
+              <h2 id="account-coupons-heading" className="mt-2 text-2xl">優惠券列表</h2>
+            </div>
+            <Link href="/account/coupons" className="text-sm text-caramel-deep underline underline-offset-4">查看與兌換優惠券</Link>
+          </div>
+          {couponsError ? (
+            <p className="mt-4 rounded-lg border border-[#ded1bd] bg-[#f7f2eb] px-5 py-4 text-sm text-[#6c5840]">優惠券暫時無法讀取，請稍後重新整理。</p>
+          ) : availableCoupons.length ? (
+            <ul className="mt-4 grid gap-4">
+              {availableCoupons.map((coupon) => <li key={coupon.id}><CouponTicket coupon={coupon} /></li>)}
+            </ul>
+          ) : (
+            <div className="mt-4 rounded-lg border border-dashed border-mist px-5 py-8 text-center">
+              <p className="font-serif text-lg">目前沒有可用優惠券</p>
+              <p className="mt-2 text-sm text-cocoa-soft">已領取且尚未到期的優惠券會顯示在這裡。</p>
+            </div>
+          )}
+        </section>
+      </div>
+
       <div className="mt-10 grid gap-10 lg:grid-cols-[1.3fr_0.7fr]">
         <section aria-labelledby="orders-heading">
           <h2 id="orders-heading" className="text-2xl">
             我的訂單
           </h2>
           {loadError ? (
-            <p className="mt-4 rounded-lg border border-[#D9B8AE] bg-[#FBF1EE] px-5 py-4 text-sm text-[#7C4234]">
+            <p className="mt-4 rounded-lg border border-[#ded1bd] bg-[#f7f2eb] px-5 py-4 text-sm text-[#6c5840]">
               目前無法讀取訂單資料，請稍後再試。
             </p>
           ) : myOrders.length === 0 ? (

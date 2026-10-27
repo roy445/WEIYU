@@ -113,9 +113,9 @@ export function SiteHeader({ user }: { user: HeaderUser }) {
             {user ? (
               <>
                 <Link
-                  href="/account/coupons"
-                  className="hidden items-center gap-1.5 rounded-full border border-caramel/40 px-2.5 py-2 text-xs text-caramel-deep transition-colors hover:bg-oat-soft lg:flex"
-                  aria-label={`目前有 ${user.points} 點甜甜數，前往甜甜數與優惠券中心`}
+                  href="/account/points"
+                  className="hidden items-center gap-1.5 rounded-full border border-[#c8dccb] bg-[#f1f7f2] px-2.5 py-2 text-xs text-[#356b46] transition-colors hover:bg-[#e8f1e9] lg:flex"
+                  aria-label={`目前有 ${user.points} 點甜甜數，前往甜甜數專區`}
                 >
                   <svg viewBox="0 0 32 32" className="h-5 w-5" fill="none" aria-hidden="true">
                     <path d="M5 22c0-3 3-5 7-5h9c4 0 6 2 6 5v2H5v-2Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
@@ -124,6 +124,13 @@ export function SiteHeader({ user }: { user: HeaderUser }) {
                     <path d="m23 19.5.8 1.7 1.9.2-1.4 1.2.4 1.8-1.7-.9-1.6.9.3-1.8-1.3-1.2 1.8-.2.8-1.7Z" stroke="currentColor" strokeWidth="1" strokeLinejoin="round" />
                   </svg>
                   <span>{user.points}</span>
+                </Link>
+                <Link
+                  href="/account/coupons"
+                  className="hidden min-h-10 items-center rounded-full border border-mist px-3 py-2 text-xs text-cocoa transition-colors hover:border-caramel hover:bg-oat-soft hover:text-caramel-deep lg:flex"
+                  aria-label="前往我的優惠券"
+                >
+                  優惠券
                 </Link>
                 <NotificationBell />
               </>
@@ -194,15 +201,6 @@ export function SiteHeader({ user }: { user: HeaderUser }) {
             <div className="mt-2 border-t border-mist/70 pt-2">
               {user ? (
                 <>
-                  <div className="flex flex-wrap items-center gap-2 px-2 py-2 lg:hidden">
-                    <Link
-                      href="/account/coupons"
-                      className="flex min-h-11 items-center gap-2 rounded-full border border-caramel/40 px-3 py-2 text-sm text-caramel-deep"
-                      aria-label={`目前有 ${user.points} 點甜甜數，前往甜甜數與優惠券中心`}
-                    >
-                      <span aria-hidden="true">甜甜數</span><span>{user.points}</span>
-                    </Link>
-                  </div>
                   <Link
                     href="/account"
                     className="flex min-h-11 items-center gap-2 rounded px-2 py-3 text-sm text-cocoa hover:bg-oat-soft"
@@ -210,6 +208,14 @@ export function SiteHeader({ user }: { user: HeaderUser }) {
                     <MemberAvatar name={user.name} color={user.avatarColor} imageUrl={user.avatarUrl} size="sm" />
                     <span className="min-w-0 truncate">{user.name} 的帳號</span>
                   </Link>
+                  <Link
+                    href="/account/points"
+                    className="flex min-h-11 items-center rounded px-2 py-3 text-sm text-[#356b46] hover:bg-[#f1f7f2]"
+                    aria-label={`目前有 ${user.points} 點甜甜數，前往甜甜數專區`}
+                  >
+                    <span>甜甜數</span><span className="ml-auto rounded-full bg-[#edf4ee] px-2.5 py-1 text-xs">{user.points} 點</span>
+                  </Link>
+                  <Link href="/account/coupons" className="block min-h-11 rounded px-2 py-3 text-sm text-cocoa hover:bg-oat-soft">優惠券</Link>
                   <Link href="/account/announcements" className="block min-h-11 rounded px-2 py-3 text-sm text-cocoa hover:bg-oat-soft">公告通知</Link>
                   <Link href="/account/favorites" className="block min-h-11 rounded px-2 py-3 text-sm text-cocoa hover:bg-oat-soft">我的收藏</Link>
                   {user.role === "admin" ? (
