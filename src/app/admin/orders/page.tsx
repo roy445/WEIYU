@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { and, desc, eq, gte, ilike, lte, or, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, gte, ilike, lte, or, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { orders } from "@/db/schema";
+import { ClearAllOrders } from "@/components/admin/clear-all-orders";
 import { OrderStatusBadge, PaymentStatusBadge } from "@/components/status-badge";
 import { ORDER_STATUS, formatDateTime, formatPrice, isOrderStatus } from "@/lib/brand";
 
@@ -29,8 +30,13 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
   if (from) conditions.push(gte(orders.createdAt, new Date(`${from}T00:00:00+08:00`)));
   if (to) conditions.push(lte(orders.createdAt, new Date(`${to}T23:59:59+08:00`)));
 
-  const base = db.select().from(orders);
-  const rows = conditions.length ? await base.where(and(...conditions)).orderBy(desc(orders.createdAt)).limit(200) : await base.orderBy(desc(orders.createdAt)).limit(200);
+  const [rows, totalRows] = await Promise.all([
+    conditions.length
+      ? db.select().from(orders).where(and(...conditions)).orderBy(desc(orders.createdAt)).limit(200)
+      : db.select().from(orders).orderBy(desc(orders.createdAt)).limit(200),
+    db.select({ total: count(orders.id) }).from(orders),
+  ]);
+  const totalOrderCount = Number(totalRows[0]?.total ?? 0);
 
   const statusLink = (value?: string) => {
     const next = new URLSearchParams();
@@ -50,6 +56,8 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
         <h1 className="mt-3 text-3xl">訂單管理</h1>
         <p className="mt-2 text-sm text-cocoa-soft">依狀態、編號、聯絡資訊或日期篩選。點擊訂單可確認、完成、取消或更新付款狀態。</p>
       </div>
+
+      <ClearAllOrders totalOrders={totalOrderCount} />
 
       <div className="flex flex-wrap gap-2 text-xs">
         <Link href={statusLink()} className={`rounded-full border px-3 py-1.5 ${!status ? "border-caramel bg-caramel text-cream" : "border-mist text-cocoa hover:border-caramel"}`}>全部</Link>

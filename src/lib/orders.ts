@@ -30,6 +30,8 @@ import type { SessionUser } from "./auth";
 import { addThreeMonths } from "./rewards";
 import { notifyProductTrackersForChange } from "./product-tracking";
 
+const ORDER_MUTATION_LOCK = sql`SELECT pg_advisory_xact_lock(20261027, 1)`;
+
 export class OrderError extends Error {
   status: number;
   constructor(message: string, status = 400) {
@@ -159,6 +161,7 @@ async function runPlaceOrder(userId: number, normalized: NormalizedItem[], meta:
   const { contactName, contactPhone, contactEmail, note, requestId } = meta;
   const input = { pickupSlotId: meta.pickupSlotId };
   return db.transaction(async (tx) => {
+    await tx.execute(ORDER_MUTATION_LOCK);
     if (requestId) {
       const existing = await tx
         .select({ id: orders.id, orderNo: orders.orderNo, total: orders.total })
@@ -511,6 +514,7 @@ export async function applyAdminOrderAction(
   payload?: { adminNote?: string },
 ): Promise<{ ok: true; status: string; paymentStatus: string; notificationWarning?: string }> {
   const result = await db.transaction(async (tx) => {
+    await tx.execute(ORDER_MUTATION_LOCK);
     const rows = await tx.select().from(orders).where(eq(orders.id, orderId)).for("update").limit(1);
     const order = rows[0];
     if (!order) throw new OrderError("找不到這筆訂單。", 404);
@@ -720,6 +724,178 @@ export async function logAdminAction(
   } catch {
     // 操作紀錄失敗不應阻斷主要流程
   }
+}
+
+export async function clearAllOrders(admin: SessionUser, reason: string) {
+  const cleanReason = reason.trim().slice(0, 500);
+  if (cleanReason.length < 2) throw new OrderError("請填寫至少 2 個字的清除原因。");
+
+  return db.transaction(async (tx) => {
+    await tx.execute(ORDER_MUTATION_LOCK);
+    const allOrders = await tx.select().from(orders).for("update");
+    const orderIds = allOrders.map((order) => order.id);
+    for (const order of allOrders) {
+      if (order.status === "cancelled" && !order.stockRestored) {
+        throw new OrderError(`已取消訂單 ${order.orderNo} 未標記庫存已回補，無法確認庫存狀態；整批已中止，資料未變更。`, 409);
+      }
+    }
+    const now = new Date();
+    let restoredPoints = 0;
+    let removedEarnedPoints = 0;
+    let restoredCoupons = 0;
+    let restoredInventoryRecords = 0;
+
+    if (orderIds.length > 0) {
+      const orderById = new Map(allOrders.map((order) => [order.id, order]));
+      const items = await tx.select().from(orderItems).where(inArray(orderItems.orderId, orderIds));
+      const restoreProductStock = new Map<number, number>();
+      const restoreVariantStock = new Map<number, number>();
+      const restorableItems = items.filter((item) => {
+        const order = orderById.get(item.orderId);
+        return order && !order.stockRestored;
+      });
+      const hasCookieBag = restorableItems.some((item) => item.productSlug === SIX_COOKIE_PACK_SLUG);
+      const cookieProducts = hasCookieBag
+        ? await tx.select({ id: products.id, slug: products.slug })
+          .from(products)
+          .where(inArray(products.slug, Object.values(COOKIE_FLAVOR_SLUGS)))
+        : [];
+      const cookieProductBySlug = new Map(cookieProducts.map((product) => [product.slug, product]));
+
+      for (const item of restorableItems) {
+        const order = orderById.get(item.orderId);
+        if (!order) continue;
+        if (item.productSlug === SIX_COOKIE_PACK_SLUG) {
+          const mix = getSixCookieMixForVariant(item.variantName, order.customerNote ?? "");
+          if (!mix) {
+            throw new OrderError(`訂單 ${order.orderNo} 的六入曲奇口味紀錄不足，整批已中止，庫存與訂單均未變更。`, 409);
+          }
+          for (const [flavor, slug] of Object.entries(COOKIE_FLAVOR_SLUGS) as [keyof typeof COOKIE_FLAVOR_SLUGS, string][]) {
+            const flavorProduct = cookieProductBySlug.get(slug);
+            if (!flavorProduct) {
+              throw new OrderError("曲奇口味商品資料不完整，無法安全回補共享庫存；整批已中止，資料未變更。", 409);
+            }
+            restoreProductStock.set(
+              flavorProduct.id,
+              (restoreProductStock.get(flavorProduct.id) ?? 0) + mix[flavor] * item.quantity,
+            );
+          }
+          continue;
+        }
+        if (item.productId) {
+          restoreProductStock.set(item.productId, (restoreProductStock.get(item.productId) ?? 0) + item.quantity);
+        }
+        if (item.variantId) {
+          restoreVariantStock.set(item.variantId, (restoreVariantStock.get(item.variantId) ?? 0) + item.quantity);
+        }
+      }
+
+      for (const [productId, quantity] of [...restoreProductStock].sort(([a], [b]) => a - b)) {
+        const restored = await tx.update(products)
+          .set({ stock: sql`${products.stock} + ${quantity}`, updatedAt: now })
+          .where(eq(products.id, productId))
+          .returning({ id: products.id });
+        if (!restored.length) throw new OrderError("有商品已不存在，無法安全回補庫存；整批已回滾。", 409);
+        restoredInventoryRecords += 1;
+      }
+      for (const [variantId, quantity] of [...restoreVariantStock].sort(([a], [b]) => a - b)) {
+        const restored = await tx.update(productVariants)
+          .set({ stock: sql`${productVariants.stock} + ${quantity}` })
+          .where(eq(productVariants.id, variantId))
+          .returning({ id: productVariants.id });
+        if (!restored.length) throw new OrderError("有商品規格已不存在，無法安全回補庫存；整批已回滾。", 409);
+        restoredInventoryRecords += 1;
+      }
+
+      const pointUses = await tx
+        .select({
+          id: orderPointUses.id,
+          orderId: orderPointUses.orderId,
+          pointLotId: orderPointUses.pointLotId,
+          amount: orderPointUses.amount,
+          restoredAt: orderPointUses.restoredAt,
+          lotExpiresAt: pointLots.expiresAt,
+        })
+        .from(orderPointUses)
+        .innerJoin(pointLots, eq(orderPointUses.pointLotId, pointLots.id))
+        .where(inArray(orderPointUses.orderId, orderIds))
+        .for("update");
+      const pointUseByOrder = new Map<number, number>();
+      for (const use of pointUses) {
+        pointUseByOrder.set(use.orderId, (pointUseByOrder.get(use.orderId) ?? 0) + use.amount);
+      }
+      for (const order of allOrders) {
+        if ((pointUseByOrder.get(order.id) ?? 0) !== order.pointsUsed) {
+          throw new OrderError(`訂單 ${order.orderNo} 的甜甜數折抵明細不完整，為保護會員點數，整批已中止，資料未變更。`, 409);
+        }
+      }
+
+      const orderEarnedLots = await tx
+        .select({ id: pointLots.id, amount: pointLots.amount })
+        .from(pointLots)
+        .where(and(eq(pointLots.source, "order"), inArray(pointLots.sourceOrderId, orderIds)))
+        .for("update");
+      const orderEarnedLotIds = new Set(orderEarnedLots.map((lot) => lot.id));
+      removedEarnedPoints = orderEarnedLots.reduce((total, lot) => total + lot.amount, 0);
+      for (const use of pointUses) {
+        if (use.restoredAt || use.lotExpiresAt <= now || orderEarnedLotIds.has(use.pointLotId)) continue;
+        const restored = await tx.update(pointLots)
+          .set({ remaining: sql`${pointLots.remaining} + ${use.amount}` })
+          .where(and(eq(pointLots.id, use.pointLotId), gt(pointLots.expiresAt, now)))
+          .returning({ id: pointLots.id });
+        if (!restored.length) throw new OrderError("有甜甜數批次已變更，無法安全回補；整批已回滾。", 409);
+        restoredPoints += use.amount;
+      }
+
+      const usedCoupons = await tx
+        .select({
+          id: userCoupons.id,
+          expiresAt: userCoupons.expiresAt,
+          couponExpiresAt: coupons.expiresAt,
+          isActive: coupons.isActive,
+        })
+        .from(userCoupons)
+        .innerJoin(coupons, eq(userCoupons.couponId, coupons.id))
+        .where(and(eq(userCoupons.status, "used"), inArray(userCoupons.usedOrderId, orderIds)))
+        .for("update");
+      for (const coupon of usedCoupons) {
+        const expiresAt = coupon.expiresAt ?? coupon.couponExpiresAt;
+        if (!coupon.isActive || expiresAt <= now) continue;
+        await tx.update(userCoupons)
+          .set({ status: "available", usedAt: null, usedOrderId: null })
+          .where(eq(userCoupons.id, coupon.id));
+        restoredCoupons += 1;
+      }
+
+      await tx.delete(orderPointUses).where(inArray(orderPointUses.orderId, orderIds));
+      await tx.delete(pointLots).where(and(
+        eq(pointLots.source, "order"),
+        inArray(pointLots.sourceOrderId, orderIds),
+      ));
+      const deleted = await tx.delete(orders).where(inArray(orders.id, orderIds)).returning({ id: orders.id });
+
+      const detail = `整批刪除訂單 ${deleted.length} 筆；回補庫存欄位 ${restoredInventoryRecords} 個、有效甜甜數 ${restoredPoints} 點、優惠券 ${restoredCoupons} 張；移除訂單消費回饋 ${removedEarnedPoints} 點。原因：${cleanReason}`;
+      await tx.insert(adminActionLogs).values({
+        adminId: admin.id,
+        adminEmail: admin.email,
+        action: "orders.delete_all",
+        targetType: "orders",
+        targetId: "all",
+        detail: detail.slice(0, 1000),
+      });
+      return { deletedCount: deleted.length, restoredInventoryRecords, restoredPoints, removedEarnedPoints, restoredCoupons };
+    }
+
+    await tx.insert(adminActionLogs).values({
+      adminId: admin.id,
+      adminEmail: admin.email,
+      action: "orders.delete_all",
+      targetType: "orders",
+      targetId: "all",
+      detail: `整批刪除訂單 0 筆。原因：${cleanReason}`,
+    });
+    return { deletedCount: 0, restoredInventoryRecords, restoredPoints, removedEarnedPoints, restoredCoupons };
+  });
 }
 
 export async function hasActivePickupOptions(): Promise<boolean> {
