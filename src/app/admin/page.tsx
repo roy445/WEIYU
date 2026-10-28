@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { and, desc, eq, lte, ne, sql } from "drizzle-orm";
+import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { adminActionLogs, orders, products } from "@/db/schema";
 import { OrderStatusBadge, PaymentStatusBadge } from "@/components/status-badge";
 import { formatDateTime, formatPrice } from "@/lib/brand";
 import { getShopSettings } from "@/lib/settings";
 import { hasActivePickupOptions } from "@/lib/orders";
+import { getOutOfStockDemand } from "@/lib/product-demand";
 
 async function count(condition?: ReturnType<typeof eq>) {
   const query = db.select({ value: sql<number>`count(*)::int` }).from(products);
@@ -16,15 +17,15 @@ async function count(condition?: ReturnType<typeof eq>) {
 export default async function AdminDashboard() {
   const [settings, pickupReady] = await Promise.all([getShopSettings(), hasActivePickupOptions()]);
 
-  const [totalProducts, activeProducts, outOfStock] = await Promise.all([
+  const [totalProducts, activeProducts, outOfStockDemand] = await Promise.all([
     count(),
     count(eq(products.isActive, true)),
-    db
-      .select({ value: sql<number>`count(*)::int` })
-      .from(products)
-      .where(and(eq(products.isActive, true), lte(products.stock, 0)))
-      .then((rows) => Number(rows[0]?.value ?? 0)),
+    getOutOfStockDemand(),
   ]);
+  const outOfStock = outOfStockDemand.length;
+  const demandSignalProducts = outOfStockDemand.filter(
+    (product) => product.trackingCount + product.favoriteCount + product.cartAddCount > 0,
+  ).length;
 
   const orderStats = await db
     .select({ status: orders.status, value: sql<number>`count(*)::int`, total: sql<number>`coalesce(sum(${orders.total}),0)::int` })
@@ -109,6 +110,19 @@ export default async function AdminDashboard() {
           </Link>
         ))}
       </div>
+
+      <section aria-labelledby="out-of-stock-demand" className="flex flex-col gap-4 rounded-lg border border-caramel/30 bg-oat-soft/40 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="eyebrow">Restock demand</p>
+          <h2 id="out-of-stock-demand" className="mt-1 text-lg">缺貨需求提醒</h2>
+          <p className="mt-1 text-sm text-cocoa-soft">
+            {demandSignalProducts > 0
+              ? `${outOfStock} 個缺貨商品中，有 ${demandSignalProducts} 個出現追蹤、收藏或加購訊號。`
+              : "目前沒有缺貨商品出現追蹤、收藏或加購訊號。"}
+          </p>
+        </div>
+        <Link href="/admin/demand" className="btn btn-secondary btn-sm shrink-0">查看缺貨需求 →</Link>
+      </section>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="rounded-lg bg-cocoa px-5 py-5 text-cream">

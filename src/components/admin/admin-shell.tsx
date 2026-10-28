@@ -14,6 +14,7 @@ const links = [
   { href: "/admin/email-center", label: "郵件寄送", icon: "✉" },
   { href: "/admin/email-logs", label: "郵件紀錄", icon: "✉" },
   { href: "/admin/products", label: "商品", icon: "✿" },
+  { href: "/admin/demand", label: "缺貨需求", icon: "!" },
   { href: "/admin/costs", label: "成本與定價", icon: "$" },
   { href: "/admin/analytics", label: "商品成效", icon: "↗" },
   { href: "/admin/members", label: "會員帳號", icon: "◎" },
