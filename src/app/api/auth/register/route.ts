@@ -60,7 +60,7 @@ export async function POST(request: Request) {
     }
 
     return ok({
-      message: "註冊資料已建立，請在 1 小時內開啟啟用信中的連結。啟用前無法登入；若收件匣沒有看到信，請檢查垃圾郵件。",
+      message: "註冊完成！請前往註冊時使用的信箱，開啟「請啟用你的唯遇甜所會員帳號」郵件，並在 1 小時內點擊「啟用會員帳號」。啟用前無法登入；若沒有看到信件，請檢查垃圾郵件或促銷內容，也可以重新寄送啟用信。",
     }, 201);
   } catch (error) {
     console.error("Registration verification email failed", {

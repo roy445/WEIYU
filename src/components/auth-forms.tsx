@@ -127,14 +127,14 @@ export function RegisterForm({ next }: { next?: string }) {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [privacyAcknowledged, setPrivacyAcknowledged] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [successEmail, setSuccessEmail] = useState<string | null>(null);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [pending, setPending] = useState(false);
   const target = safeNext(next);
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setError(null);
-    setMessage(null);
     if (form.password !== form.passwordConfirm) {
       setError("兩次輸入的密碼不一致。");
       return;
@@ -150,12 +150,13 @@ export function RegisterForm({ next }: { next?: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form, termsAccepted, privacyAcknowledged, next }),
       });
-      const data = (await response.json()) as { ok?: boolean; error?: string; message?: string };
+      const data = (await response.json()) as { ok?: boolean; error?: string };
       if (!response.ok || !data.ok) {
         setError(data.error ?? "註冊失敗，請再試一次。");
         return;
       }
-      setMessage(data.message ?? "請查看 Email 完成帳號啟用。");
+      setSuccessEmail(form.email.trim().toLowerCase());
+      setShowSuccessDialog(true);
     } catch {
       setError("網路或伺服器發生問題，請稍後再試。");
     } finally {
@@ -169,6 +170,27 @@ export function RegisterForm({ next }: { next?: string }) {
   });
 
   return (
+    <>
+      {successEmail ? (
+        <section role="status" className="space-y-5 rounded-xl border border-[#c9dccb] bg-[#f3f8f2] p-5 sm:p-6">
+          <div>
+            <p className="eyebrow text-[#3f6846]">下一步</p>
+            <h2 className="mt-2 text-2xl text-cocoa">請前往信箱啟用帳號</h2>
+            <p className="mt-3 text-sm leading-relaxed text-cocoa-soft">啟用信已寄往：</p>
+            <p className="mt-1 break-all rounded-lg bg-white/80 px-3 py-2 text-sm font-semibold text-[#365f3d]">{successEmail}</p>
+          </div>
+          <ol className="list-decimal space-y-2 pl-5 text-sm leading-relaxed text-cocoa">
+            <li>開啟信箱，找到「請啟用你的唯遇甜所會員帳號」郵件。</li>
+            <li>點擊信中的「啟用會員帳號」按鈕。</li>
+          </ol>
+          <p className="text-sm leading-relaxed text-cocoa-soft">請在 1 小時內完成；帳號啟用前無法登入或使用會員功能。若收件匣沒有看到，請檢查垃圾郵件或促銷內容。</p>
+          <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
+            <Link href="/resend-activation" className="text-caramel-deep underline underline-offset-4">沒有收到？重新寄送啟用信</Link>
+            <Link href={next ? `/login?next=${encodeURIComponent(target)}` : "/login"} className="text-cocoa-soft underline underline-offset-4">啟用後前往登入</Link>
+          </div>
+        </section>
+      ) : null}
+      {!successEmail ? (
     <form onSubmit={onSubmit} className="space-y-5" noValidate>
       <div>
         <label htmlFor="reg-name" className="field-label">顯示名稱</label>
@@ -263,7 +285,6 @@ export function RegisterForm({ next }: { next?: string }) {
       <div aria-live="polite" className="min-h-5">
         {error ? <p className="text-sm text-[#8A4B3D] animate-fade-in">{error}</p> : null}
       </div>
-      {message ? <div role="status" className="rounded-lg border border-mist bg-cream/50 p-4 text-sm leading-relaxed text-cocoa-soft">{message} 請先檢查收件匣；若沒有看到，請到垃圾郵件資料夾，並將信件移至收件匣、回報為「非垃圾郵件」。</div> : null}
       <button type="submit" className="btn btn-primary w-full" disabled={pending}>
         {pending ? "建立中…" : "建立會員"}
       </button>
@@ -273,7 +294,29 @@ export function RegisterForm({ next }: { next?: string }) {
           直接登入
         </Link>
       </p>
-    </form>
+        </form>
+      ) : null}
+      {successEmail && showSuccessDialog ? (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-cocoa/60 p-4"
+          onKeyDown={(event) => {
+            if (event.key === "Escape") setShowSuccessDialog(false);
+          }}
+        >
+          <section role="dialog" aria-modal="true" aria-labelledby="register-success-title" aria-describedby="register-success-description" className="surface max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-xl p-6 shadow-2xl sm:p-8">
+            <p className="eyebrow text-[#3f6846]">Registration complete</p>
+            <h2 id="register-success-title" className="mt-2 text-2xl text-cocoa">註冊完成，請啟用帳號</h2>
+            <p id="register-success-description" className="mt-3 text-sm leading-relaxed text-cocoa-soft">我們已將啟用信寄往以下信箱。請開啟郵件，並點擊信中的「啟用會員帳號」按鈕：</p>
+            <p className="mt-3 break-all rounded-lg bg-[#f3f8f2] px-4 py-3 text-sm font-semibold text-[#365f3d]">{successEmail}</p>
+            <p className="mt-3 text-sm leading-relaxed text-cocoa-soft">啟用連結 1 小時內有效，啟用前無法登入。若沒有看到信件，請檢查垃圾郵件／促銷內容，或重新寄送啟用信。</p>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              <Link href="/resend-activation" className="btn btn-secondary w-full text-center">重新寄送啟用信</Link>
+              <button type="button" autoFocus onClick={() => setShowSuccessDialog(false)} className="btn btn-primary w-full">我知道了</button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+    </>
   );
 }
 
